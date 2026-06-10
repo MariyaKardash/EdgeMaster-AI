@@ -1,0 +1,29 @@
+{
+  "expo": {
+    "name": "EdgeMaster AI",
+    "slug": "edgemaster-ai",
+    "scheme": "edgemaster-ai",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "plugins": ["expo-dev-client"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.edgemaster.ai"
+    },
+    "android": {
+      "package": "com.edgemaster.ai",
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
