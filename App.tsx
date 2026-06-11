@@ -1,20 +1,44 @@
+import {
+  DMSans_400Regular,
+  DMSans_500Medium,
+  useFonts as useDMSans,
+} from '@expo-google-fonts/dm-sans';
+import {
+  PlayfairDisplay_600SemiBold,
+  PlayfairDisplay_700Bold,
+  useFonts as usePlayfairDisplay,
+} from '@expo-google-fonts/playfair-display';
+import { SpaceMono_400Regular, useFonts as useSpaceMono } from '@expo-google-fonts/space-mono';
 import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
+
+import { styles } from '@/app.styles';
+import { WelcomeScreen } from '@/screens/welcome';
+import { colors } from '@/theme/colors';
 
 export default function App() {
+  const [playfairLoaded] = usePlayfairDisplay({
+    PlayfairDisplay_600SemiBold,
+    PlayfairDisplay_700Bold,
+  });
+  const [dmSansLoaded] = useDMSans({ DMSans_400Regular, DMSans_500Medium });
+  const [spaceMonoLoaded] = useSpaceMono({ SpaceMono_400Regular });
+
+  const fontsLoaded = playfairLoaded && dmSansLoaded && spaceMonoLoaded;
+
+  if (!fontsLoaded) {
+    return (
+      <View style={styles.loading}>
+        <ActivityIndicator color={colors.primary} />
+        <StatusBar style="light" />
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      <Text>Open up App.tsx to start working on your app!</Text>
-      <StatusBar style="auto" />
-    </View>
+    <>
+      <WelcomeScreen />
+      <StatusBar style="light" />
+    </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

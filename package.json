@@ -18,11 +18,25 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@expo-google-fonts/dm-sans": "^0.4.2",
+    "@expo-google-fonts/playfair-display": "^0.4.2",
+    "@expo-google-fonts/space-mono": "^0.4.2",
+    "@expo/vector-icons": "^15.0.2",
+    "babel-preset-expo": "~56.0.0",
     "expo": "~56.0.9",
+    "expo-build-properties": "~56.0.18",
     "expo-dev-client": "~56.0.19",
+    "expo-font": "~56.0.6",
+    "expo-image": "~56.0.11",
+    "expo-linear-gradient": "~56.0.4",
     "expo-status-bar": "~56.0.4",
     "react": "19.2.3",
-    "react-native": "0.85.3"
+    "react-native": "0.85.3",
+    "react-native-edge-to-edge": "^1.8.1",
+    "react-native-nitro-modules": "^0.35.9",
+    "react-native-reanimated": "4.3.1",
+    "react-native-svg": "15.15.4",
+    "react-native-unistyles": "^3.2.5"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
