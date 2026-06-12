@@ -7,7 +7,6 @@ export type RoleCardProps = {
   title: string;
   description: string;
   icon: RoleCardIcon;
-  overlayIcon?: RoleCardIcon;
   accentColor: string;
   selected?: boolean;
   onPress?: () => void;

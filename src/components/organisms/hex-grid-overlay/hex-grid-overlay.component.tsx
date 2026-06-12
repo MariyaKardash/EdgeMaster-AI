@@ -1,7 +1,7 @@
 import { View, useWindowDimensions } from 'react-native';
 import Svg, { Defs, Pattern, Path, Rect } from 'react-native-svg';
 
-import { colors } from '@/theme';
+import { withAlpha } from '@/theme';
 import { styles } from './hex-grid-overlay.styles';
 
 export const HexGridOverlay = () => {
@@ -14,8 +14,7 @@ export const HexGridOverlay = () => {
           <Pattern id="hex" width={60} height={104} patternUnits="userSpaceOnUse">
             <Path
               d="M30 0l30 17.32v34.64L30 69.28 0 51.96V17.32L30 0z"
-              fill={colors.primary}
-              fillOpacity={0.03}
+              fill={withAlpha('primary', 0.03)}
             />
           </Pattern>
         </Defs>

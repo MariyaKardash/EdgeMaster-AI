@@ -5,6 +5,7 @@ export type ButtonProps = {
   title: string;
   onPress?: () => void;
   icon?: ComponentProps<typeof MaterialIcons>['name'];
+  iconSize?: number;
   fullWidth?: boolean;
   disabled?: boolean;
 };

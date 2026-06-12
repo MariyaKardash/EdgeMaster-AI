@@ -1,9 +1,9 @@
 import { Pressable, View } from 'react-native';
 import Animated, { interpolate, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
-import { scheduleOnUI } from 'react-native-worklets';
 
 import { Icon } from '@/components/atoms/icon';
 import { Text } from '@/components/atoms/text';
+import { withAlphaHex } from '@/theme/color-utils';
 import { animateButtonPressIn, animateButtonPressOut } from '../button/button.press-animation';
 import { styles } from './role-card.styles';
 import type { RoleCardProps } from './role-card.types';
@@ -14,7 +14,6 @@ export const RoleCard = ({
   title,
   description,
   icon,
-  overlayIcon,
   accentColor,
   selected = false,
   onPress,
@@ -26,11 +25,11 @@ export const RoleCard = ({
   }));
 
   const handlePressIn = () => {
-    scheduleOnUI(animateButtonPressIn, pressed);
+    animateButtonPressIn(pressed);
   };
 
   const handlePressOut = () => {
-    scheduleOnUI(animateButtonPressOut, pressed);
+    animateButtonPressOut(pressed);
   };
 
   return (
@@ -40,9 +39,9 @@ export const RoleCard = ({
         selected && {
           shadowColor: accentColor,
           shadowOffset: { width: 0, height: 0 },
-          shadowOpacity: 0.45,
-          shadowRadius: 16,
-          elevation: 8,
+          shadowOpacity: 0.35,
+          shadowRadius: 12,
+          elevation: 6,
         },
       ]}
     >
@@ -56,45 +55,44 @@ export const RoleCard = ({
           styles.card,
           animatedStyle,
           {
-            borderColor: selected ? accentColor : `${accentColor}4D`,
+            borderColor: selected ? accentColor : withAlphaHex(accentColor, 0.15),
           },
+          selected && { backgroundColor: withAlphaHex(accentColor, 0.06) },
         ]}
       >
         <View
+          pointerEvents="none"
           style={[
-            styles.parchmentOverlay,
-            { backgroundColor: selected ? `${accentColor}24` : `${accentColor}12` },
+            styles.ambientGlow,
+            { backgroundColor: withAlphaHex(accentColor, selected ? 0.1 : 0.05) },
           ]}
         />
-        <View style={styles.content}>
+
+        {selected ? (
+          <View style={[styles.selectedIndicator, { backgroundColor: accentColor }]} />
+        ) : null}
+
+        <View style={styles.headerRow}>
           <View
             style={[
               styles.iconCircle,
               {
-                backgroundColor: selected ? `${accentColor}33` : `${accentColor}1A`,
-                borderColor: selected ? `${accentColor}66` : `${accentColor}33`,
+                borderColor: withAlphaHex(accentColor, selected ? 0.4 : 0.2),
               },
             ]}
           >
-            <Icon name={icon} size={48} color={accentColor} />
-            {overlayIcon ? (
-              <View style={styles.iconOverlay}>
-                <Icon name={overlayIcon} size={28} color={accentColor} />
-              </View>
-            ) : null}
+            <Icon name={icon} size={28} color={accentColor} />
           </View>
 
-          <Text variant="roleCardTitle" style={[styles.title, { color: accentColor }]}>
-            {title}
-          </Text>
-          <Text variant="roleCardDescription" style={styles.description}>
-            {description}
-          </Text>
+          <View style={styles.headerText}>
+            <Text variant="headlineMd" style={[styles.title, { color: accentColor }]}>
+              {title}
+            </Text>
+            <Text variant="bodyMd" style={styles.description}>
+              {description}
+            </Text>
+          </View>
         </View>
-
-        <View
-          style={[styles.glow, { backgroundColor: `${accentColor}${selected ? '1A' : '0D'}` }]}
-        />
       </AnimatedPressable>
     </View>
   );

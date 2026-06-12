@@ -1,5 +1,7 @@
 import { StyleSheet } from 'react-native-unistyles';
 
+import { withAlphaHex } from '@/theme/color-utils';
+
 import { MAP_SIZE } from './welcome.constants';
 
 export const styles = StyleSheet.create((theme) => ({
@@ -44,7 +46,7 @@ export const styles = StyleSheet.create((theme) => ({
     height: 48,
     borderTopWidth: 2,
     borderLeftWidth: 2,
-    borderColor: `${theme.colors.primary}4D`,
+    borderColor: withAlphaHex('primary', 0.3),
     borderTopLeftRadius: 12,
   },
   cornerAccentBottomRight: {
@@ -55,7 +57,7 @@ export const styles = StyleSheet.create((theme) => ({
     height: 48,
     borderBottomWidth: 2,
     borderRightWidth: 2,
-    borderColor: `${theme.colors.primary}4D`,
+    borderColor: withAlphaHex('primary', 0.3),
     borderBottomRightRadius: 12,
   },
   mapBorder: {
@@ -63,7 +65,7 @@ export const styles = StyleSheet.create((theme) => ({
     height: MAP_SIZE,
     borderRadius: MAP_SIZE / 2,
     borderWidth: 1,
-    borderColor: `${theme.colors.primary}33`,
+    borderColor: withAlphaHex('primary', 0.2),
     padding: 8,
     backgroundColor: theme.colors.surfaceContainerLow,
     overflow: 'hidden',

@@ -1,6 +1,5 @@
 import { Pressable, View } from 'react-native';
 import Animated, { interpolate, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
-import { scheduleOnUI } from 'react-native-worklets';
 
 import { Icon } from '@/components/atoms/icon';
 import { Text } from '@/components/atoms/text';
@@ -14,6 +13,7 @@ export const Button = ({
   title,
   onPress,
   icon,
+  iconSize = 20,
   fullWidth = false,
   disabled = false,
 }: ButtonProps) => {
@@ -28,12 +28,12 @@ export const Button = ({
 
   const handlePressIn = () => {
     if (disabled) return;
-    scheduleOnUI(animateButtonPressIn, pressed);
+    animateButtonPressIn(pressed);
   };
 
   const handlePressOut = () => {
     if (disabled) return;
-    scheduleOnUI(animateButtonPressOut, pressed);
+    animateButtonPressOut(pressed);
   };
 
   return (
@@ -47,7 +47,7 @@ export const Button = ({
         accessibilityState={{ disabled }}
       >
         <Text variant="buttonLabel">{title}</Text>
-        {icon ? <Icon name={icon} size={16} color="onPrimary" /> : null}
+        {icon ? <Icon name={icon} size={iconSize} color="onPrimary" /> : null}
       </AnimatedPressable>
     </View>
   );
