@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import type { CampaignDoc } from '@/types/campaign.types';
-import { CampaignRAGService, type RAGServiceStatus } from '@/services/CampaignRAGService';
+import { CampaignRAGService, type RAGServiceStatus } from '@/services/campaign-rag';
 
 export type UseCampaignRAGParams = {
   campaignId: string;

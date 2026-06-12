@@ -10,47 +10,11 @@ import {
   unloadModel,
 } from '@qvac/sdk';
 
-import type { CampaignDoc, DocType } from '@/types/campaign.types';
+import type { CampaignDoc } from '@/types/campaign.types';
 
-export type RAGServiceStatus =
-  | 'idle'
-  | 'downloading-embedder'
-  | 'loading-embedder'
-  | 'seeding'
-  | 'ready'
-  | 'error';
-
-export type RAGServiceProgressCallback = (status: RAGServiceStatus, pct?: number) => void;
-
-const WORKSPACE_PREFIX = 'campaign-';
-
-const DOC_TYPE_LABELS: Record<DocType, string> = {
-  overview: 'OVERVIEW',
-  lore: 'LORE',
-  'chapter-description': 'CHAPTER-DESCRIPTION',
-  'session-summary': 'SESSION-SUMMARY',
-  npc: 'NPC',
-  location: 'LOCATION',
-  faction: 'FACTION',
-  custom: 'NOTE',
-};
-
-/**
- * Formats a CampaignDoc into a richly prefixed string so the LLM receives
- * structural context from every retrieved chunk, even without metadata filtering.
- *
- * Example output:
- *   [SESSION-SUMMARY | Session 4 | Chapter 3 | master-written]
- *   After a tense negotiation with Pressa…
- */
-function formatDocContent(doc: CampaignDoc): string {
-  const typeLabel = DOC_TYPE_LABELS[doc.type];
-  const parts = [typeLabel, doc.title];
-  if (doc.chapterId) parts.push(`Chapter ${doc.chapterId}`);
-  if (doc.sessionNumber != null) parts.push(`Session ${doc.sessionNumber}`);
-  parts.push(doc.source);
-  return `[${parts.join(' | ')}]\n${doc.content}`;
-}
+import { WORKSPACE_PREFIX } from './campaign-rag.constants';
+import type { RAGServiceProgressCallback } from './campaign-rag.types';
+import { formatDocContent } from './campaign-rag.utils';
 
 export class CampaignRAGService {
   private embeddingModelId: string | null = null;
@@ -81,6 +45,12 @@ export class CampaignRAGService {
     this.embeddingModelId = await loadModel({
       modelSrc: EMBEDDINGGEMMA_300M_Q4_0,
       modelType: 'llamacpp-embedding',
+      modelConfig: {
+        // CPU keeps the embedding model off the GPU memory pool so the LLM
+        // has exclusive access to it. Embedding inference is infrequent enough
+        // that the speed trade-off is acceptable.
+        device: 'cpu',
+      },
       onProgress: (p: ModelProgressUpdate) => {
         onProgress?.('loading-embedder', Math.round(p.percentage));
       },
@@ -126,7 +96,7 @@ export class CampaignRAGService {
    * minScore are considered unrelated and are dropped. If all results are
    * dropped, null is returned so the caller can skip context injection.
    */
-  async search(query: string, topK = 4, minScore = 0.5): Promise<string | null> {
+  async search(query: string, topK = 3, minScore = 0.5): Promise<string | null> {
     if (!this.embeddingModelId || !this.campaignId) {
       return null;
     }

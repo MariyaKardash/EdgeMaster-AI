@@ -9,26 +9,15 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useUnistyles } from 'react-native-unistyles';
 
 import { MOCK_CAMPAIGN } from '@/data/mock-campaign';
 import { useCampaignChat } from '@/hooks/useCampaignChat';
 
 import { styles } from './llm-chat.styles';
-import type { CampaignChatProps, ChatMessage, MessageStats } from './llm-chat.types';
-
-function formatStats(stats: MessageStats) {
-  const parts: string[] = [];
-  if (stats.ttftMs != null) {
-    const seconds =
-      stats.ttftMs >= 1000 ? (stats.ttftMs / 1000).toFixed(2) : stats.ttftMs.toFixed(0);
-    const unit = stats.ttftMs >= 1000 ? 's' : 'ms';
-    parts.push(`TTFT ${seconds}${unit}`);
-  }
-  if (stats.tps != null) {
-    parts.push(`${stats.tps.toFixed(1)} TPS`);
-  }
-  return parts.join(' · ');
-}
+import type { CampaignChatProps, ChatMessage } from './llm-chat.types';
+import { formatStats } from './llm-chat.utils';
 
 type Props = Partial<CampaignChatProps>;
 
@@ -47,6 +36,8 @@ export function LLMChatScreen({
 
   const [input, setInput] = useState('');
   const listRef = useRef<FlatList<ChatMessage>>(null);
+  const insets = useSafeAreaInsets();
+  const { theme } = useUnistyles();
 
   const canSend = useMemo(
     () => isReady && !isGenerating && input.trim().length > 0,
@@ -70,7 +61,7 @@ export function LLMChatScreen({
   const visibleMessages = messages.filter((m) => m.role !== 'system');
 
   return (
-    <View style={styles.safe}>
+    <View style={[styles.safe, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
       <KeyboardAvoidingView
         style={styles.safe}
         behavior="padding"
@@ -78,10 +69,12 @@ export function LLMChatScreen({
       >
         <View style={styles.header}>
           <Text style={styles.title}>{campaignName}</Text>
-          <Text style={styles.subtitle}>
-            {statusLabel}
-            {downloadPct != null ? ` (${downloadPct}%)` : ''}
-          </Text>
+          {!isReady && (
+            <Text style={styles.subtitle}>
+              {statusLabel}
+              {downloadPct != null ? ` (${downloadPct}%)` : ''}
+            </Text>
+          )}
           {downloadPct != null && (
             <View style={styles.progressBar}>
               <View style={[styles.progressFill, { width: `${downloadPct}%` }]} />
@@ -95,16 +88,13 @@ export function LLMChatScreen({
             data={visibleMessages}
             keyExtractor={(m) => m.id}
             renderItem={({ item }) => {
-              const statsLabel =
-                item.role === 'assistant' && item.stats ? formatStats(item.stats) : '';
+              const isUser = item.role === 'user';
+              const statsLabel = !isUser && item.stats ? formatStats(item.stats) : '';
               return (
-                <View
-                  style={[
-                    styles.bubble,
-                    item.role === 'user' ? styles.bubbleUser : styles.bubbleAssistant,
-                  ]}
-                >
-                  <Text style={styles.bubbleText}>{item.content}</Text>
+                <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAssistant]}>
+                  <Text style={[styles.bubbleText, isUser && styles.bubbleTextUser]}>
+                    {item.content}
+                  </Text>
                   {statsLabel ? <Text style={styles.bubbleStats}>{statsLabel}</Text> : null}
                 </View>
               );
@@ -119,14 +109,13 @@ export function LLMChatScreen({
             value={input}
             onChangeText={setInput}
             placeholder={isReady ? 'Ask about the campaign…' : 'Loading…'}
+            placeholderTextColor={theme.colors.onSurfaceVariant}
             editable={isReady && !isGenerating}
             returnKeyType="send"
             onSubmitEditing={handleSend}
           />
-          {isGenerating ? <ActivityIndicator /> : null}
+          {isGenerating ? <ActivityIndicator color={theme.colors.primary} /> : null}
         </View>
-
-        <Text style={styles.hint}>Press send/enter to submit. Messages stream token-by-token.</Text>
       </KeyboardAvoidingView>
     </View>
   );

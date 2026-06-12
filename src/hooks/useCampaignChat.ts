@@ -1,11 +1,15 @@
 import { completion } from '@qvac/sdk';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { CampaignDoc } from '@/types/campaign.types';
 import type { ChatMessage, MessageStats } from '@/screens/llm-chat/llm-chat.types';
 
 import { useCampaignRAG } from './useCampaignRAG';
 import { useLLMModel } from './useLLMModel';
+
+/** Max chat messages kept in the history sent to the LLM (not in the UI).
+ *  Limits KV cache growth. 10 = 5 back-and-forth exchanges. */
+const MAX_HISTORY_MESSAGES = 10;
 
 export type UseCampaignChatParams = {
   campaignId: string;
@@ -105,11 +109,14 @@ export function useCampaignChat({
 
         const systemContent = buildSystemPrompt(campaignName, userRole, ragContext);
 
+        const recentMessages = messagesRef.current
+          .filter((m) => m.role !== 'system')
+          .slice(-MAX_HISTORY_MESSAGES)
+          .map((m) => ({ role: m.role, content: m.content }));
+
         const history = [
           { role: 'system' as const, content: systemContent },
-          ...messagesRef.current
-            .filter((m) => m.role !== 'system')
-            .map((m) => ({ role: m.role, content: m.content })),
+          ...recentMessages,
           { role: 'user' as const, content: trimmed },
         ];
 

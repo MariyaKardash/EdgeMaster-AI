@@ -52,7 +52,7 @@ export function useLLMModel(): UseLLMModelResult {
           modelType: 'llamacpp-completion',
           modelConfig: {
             device: 'gpu',
-            ctx_size: 2048,
+            ctx_size: 1024,
             verbosity: VERBOSITY.ERROR,
           },
           onProgress: (p: ModelProgressUpdate) => {
