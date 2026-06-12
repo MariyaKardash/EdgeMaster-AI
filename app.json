@@ -17,6 +17,9 @@
           "ios": {
             "usePrecompiledModules": false
           },
+          "android": {
+            "minSdkVersion": 29
+          },
           "newArchEnabled": true
         }
       ],
