@@ -1,4 +1,4 @@
-export type Role = 'user' | 'assistant';
+export type Role = 'user' | 'assistant' | 'system';
 
 export type MessageStats = { ttftMs?: number; tps?: number };
 
@@ -7,4 +7,10 @@ export type ChatMessage = {
   role: Role;
   content: string;
   stats?: MessageStats;
+};
+
+export type CampaignChatProps = {
+  campaignId: string;
+  campaignName: string;
+  userRole?: 'master' | 'player';
 };

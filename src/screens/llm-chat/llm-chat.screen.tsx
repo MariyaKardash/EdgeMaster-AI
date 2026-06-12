@@ -1,12 +1,3 @@
-import {
-  completion,
-  downloadAsset,
-  LLAMA_3_2_1B_INST_Q4_0,
-  loadModel,
-  type ModelProgressUpdate,
-  unloadModel,
-  VERBOSITY,
-} from '@qvac/sdk';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -19,12 +10,11 @@ import {
   View,
 } from 'react-native';
 
-import { styles } from './llm-chat.styles';
-import type { ChatMessage, MessageStats } from './llm-chat.types';
+import { MOCK_CAMPAIGN } from '@/data/mock-campaign';
+import { useCampaignChat } from '@/hooks/useCampaignChat';
 
-function makeId() {
-  return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
+import { styles } from './llm-chat.styles';
+import type { CampaignChatProps, ChatMessage, MessageStats } from './llm-chat.types';
 
 function formatStats(stats: MessageStats) {
   const parts: string[] = [];
@@ -40,25 +30,28 @@ function formatStats(stats: MessageStats) {
   return parts.join(' · ');
 }
 
-export function LLMChatScreen() {
-  const [modelId, setModelId] = useState<string | null>(null);
-  const [status, setStatus] = useState('Initializing…');
-  const [downloadPct, setDownloadPct] = useState<number | null>(null);
+type Props = Partial<CampaignChatProps>;
+
+export function LLMChatScreen({
+  campaignId = MOCK_CAMPAIGN.id,
+  campaignName = MOCK_CAMPAIGN.name,
+  userRole = 'player',
+}: Props) {
+  const { messages, sendMessage, isGenerating, isReady, statusLabel, downloadPct } =
+    useCampaignChat({
+      campaignId,
+      campaignName,
+      userRole,
+      seedDocuments: MOCK_CAMPAIGN.documents,
+    });
 
   const [input, setInput] = useState('');
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
-
   const listRef = useRef<FlatList<ChatMessage>>(null);
-  const messagesRef = useRef<ChatMessage[]>([]);
 
-  useEffect(() => {
-    messagesRef.current = messages;
-  }, [messages]);
-
-  const canSend = useMemo(() => {
-    return !!modelId && !isGenerating && input.trim().length > 0;
-  }, [modelId, isGenerating, input]);
+  const canSend = useMemo(
+    () => isReady && !isGenerating && input.trim().length > 0,
+    [isReady, isGenerating, input],
+  );
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -67,126 +60,14 @@ export function LLMChatScreen() {
     return () => clearTimeout(t);
   }, [messages]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    (async () => {
-      try {
-        setStatus('Downloading model…');
-
-        await downloadAsset({
-          assetSrc: LLAMA_3_2_1B_INST_Q4_0,
-          onProgress: (progress: ModelProgressUpdate) => {
-            if (!cancelled) setDownloadPct(Math.round(progress.percentage));
-          },
-        });
-
-        if (cancelled) return;
-
-        setStatus('Loading model into memory…');
-
-        const id = await loadModel({
-          modelSrc: LLAMA_3_2_1B_INST_Q4_0,
-          modelType: 'llamacpp-completion',
-          modelConfig: {
-            device: 'gpu',
-            ctx_size: 2048,
-            verbosity: VERBOSITY.ERROR,
-          },
-          onProgress: (progress: ModelProgressUpdate) => {
-            if (!cancelled) setDownloadPct(Math.round(progress.percentage));
-          },
-        });
-
-        if (cancelled) return;
-
-        setModelId(id);
-        setStatus('Ready');
-        setDownloadPct(null);
-      } catch (e: unknown) {
-        if (!cancelled) {
-          const message = e instanceof Error ? e.message : String(e);
-          setStatus(`Init failed: ${message}`);
-        }
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (modelId) {
-        void unloadModel({ modelId, clearStorage: false }).catch(() => {});
-      }
-    };
-  }, [modelId]);
-
   async function handleSend() {
-    if (!modelId || isGenerating || !canSend) return;
-
-    const trimmed = input.trim();
+    if (!canSend) return;
+    const text = input.trim();
     setInput('');
-    setIsGenerating(true);
-
-    const userMsg: ChatMessage = { id: makeId(), role: 'user', content: trimmed };
-    const assistantId = makeId();
-    const assistantMsg: ChatMessage = { id: assistantId, role: 'assistant', content: '' };
-
-    setMessages((prev) => [...prev, userMsg, assistantMsg]);
-
-    try {
-      const history = [...messagesRef.current, userMsg].map((m) => ({
-        role: m.role,
-        content: m.content,
-      }));
-
-      const run = completion({
-        modelId,
-        history,
-        stream: true,
-      });
-
-      let acc = '';
-
-      let stats: MessageStats | undefined;
-
-      for await (const event of run.events) {
-        if (event.type === 'contentDelta') {
-          acc += event.text;
-          setMessages((prev) =>
-            prev.map((m) => (m.id === assistantId ? { ...m, content: acc } : m)),
-          );
-        } else if (event.type === 'completionStats') {
-          stats = {
-            ttftMs: event.stats.timeToFirstToken,
-            tps: event.stats.tokensPerSecond,
-          };
-        }
-      }
-
-      const final = await run.final;
-      if (final.stats) {
-        stats = {
-          ttftMs: final.stats.timeToFirstToken ?? stats?.ttftMs,
-          tps: final.stats.tokensPerSecond ?? stats?.tps,
-        };
-      }
-
-      if (stats && (stats.ttftMs != null || stats.tps != null)) {
-        setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, stats } : m)));
-      }
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : String(e);
-      setMessages((prev) =>
-        prev.map((m) => (m.id === assistantId ? { ...m, content: `Error: ${message}` } : m)),
-      );
-    } finally {
-      setIsGenerating(false);
-    }
+    await sendMessage(text);
   }
+
+  const visibleMessages = messages.filter((m) => m.role !== 'system');
 
   return (
     <View style={styles.safe}>
@@ -196,9 +77,9 @@ export function LLMChatScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 8 : StatusBar.currentHeight || 0}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>LLM Chat</Text>
+          <Text style={styles.title}>{campaignName}</Text>
           <Text style={styles.subtitle}>
-            {status}
+            {statusLabel}
             {downloadPct != null ? ` (${downloadPct}%)` : ''}
           </Text>
           {downloadPct != null && (
@@ -211,7 +92,7 @@ export function LLMChatScreen() {
         <View style={styles.chat}>
           <FlatList
             ref={listRef}
-            data={messages}
+            data={visibleMessages}
             keyExtractor={(m) => m.id}
             renderItem={({ item }) => {
               const statsLabel =
@@ -237,8 +118,8 @@ export function LLMChatScreen() {
             style={styles.input}
             value={input}
             onChangeText={setInput}
-            placeholder={modelId ? 'Type a message…' : 'Loading model…'}
-            editable={!!modelId && !isGenerating}
+            placeholder={isReady ? 'Ask about the campaign…' : 'Loading…'}
+            editable={isReady && !isGenerating}
             returnKeyType="send"
             onSubmitEditing={handleSend}
           />
