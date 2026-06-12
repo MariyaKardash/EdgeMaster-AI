@@ -11,7 +11,7 @@ const ChooseRoleRoute = () => {
       return;
     }
 
-    // TODO: navigate to master flow
+    router.push('/master/campaign-selection');
   };
 
   return <ChooseRoleScreen onSelectRole={handleSelectRole} />;
