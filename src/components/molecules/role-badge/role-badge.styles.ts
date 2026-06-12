@@ -1,5 +1,7 @@
 import { StyleSheet } from 'react-native-unistyles';
 
+import { withAlphaHex } from '@/theme/color-utils';
+
 export const styles = StyleSheet.create((theme) => ({
   badge: {
     flexDirection: 'row',
@@ -10,6 +12,6 @@ export const styles = StyleSheet.create((theme) => ({
     backgroundColor: theme.colors.surfaceContainer,
     borderRadius: theme.radius.full,
     borderWidth: 1,
-    borderColor: `${theme.colors.primary}1A`,
+    borderColor: withAlphaHex('primary', 0.1),
   },
 }));

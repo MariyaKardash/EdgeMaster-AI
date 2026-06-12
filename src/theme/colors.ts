@@ -67,6 +67,8 @@ export const colors = {
   connected: '#4a7c59',
   agedGold: '#c9a227',
   neutral: '#1a1612',
+
+  transparent: 'transparent',
 } as const;
 
 export type ColorToken = keyof typeof colors;
