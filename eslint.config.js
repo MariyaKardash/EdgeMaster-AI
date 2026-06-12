@@ -13,6 +13,7 @@ module.exports = defineConfig([
     'coverage/**',
     'ios/**',
     'android/**',
+    'src/lib/holepunch/bare/**',
     '*.tsbuildinfo',
   ]),
   expoConfig,
