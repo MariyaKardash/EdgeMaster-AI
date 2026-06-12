@@ -4,7 +4,7 @@ import { Animated, Easing } from 'react-native';
 import { styles } from './spinning-ring.styles';
 import type { SpinningRingProps } from './spinning-ring.types';
 
-export function SpinningRing({ baseSize, inset, duration, reverse }: SpinningRingProps) {
+export const SpinningRing = ({ baseSize, inset, duration, reverse }: SpinningRingProps) => {
   const rotation = useMemo(() => new Animated.Value(0), []);
 
   useEffect(() => {
@@ -40,4 +40,4 @@ export function SpinningRing({ baseSize, inset, duration, reverse }: SpinningRin
       ]}
     />
   );
-}
+};

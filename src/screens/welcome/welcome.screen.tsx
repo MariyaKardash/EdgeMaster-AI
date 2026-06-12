@@ -19,7 +19,7 @@ import { MAP_IMAGE, MAP_SIZE } from './welcome.constants';
 import { styles } from './welcome.styles';
 import type { WelcomeScreenProps } from './welcome.types';
 
-export function WelcomeScreen({ onGetStarted }: WelcomeScreenProps) {
+export const WelcomeScreen = ({ onGetStarted }: WelcomeScreenProps) => {
   const headerOpacity = useMemo(() => new Animated.Value(0), []);
   const headerTranslate = useMemo(() => new Animated.Value(-20), []);
   const mainOpacity = useMemo(() => new Animated.Value(0), []);
@@ -137,4 +137,4 @@ export function WelcomeScreen({ onGetStarted }: WelcomeScreenProps) {
       </Animated.View>
     </View>
   );
-}
+};

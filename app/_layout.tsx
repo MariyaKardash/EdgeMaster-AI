@@ -1,3 +1,5 @@
+import '@/theme/unistyles';
+
 import {
   DMSans_400Regular,
   DMSans_500Medium,
@@ -9,14 +11,14 @@ import {
   useFonts as usePlayfairDisplay,
 } from '@expo-google-fonts/playfair-display';
 import { SpaceMono_400Regular, useFonts as useSpaceMono } from '@expo-google-fonts/space-mono';
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
 
 import { styles } from '@/app.styles';
-import { WelcomeScreen } from '@/screens/welcome';
 import { colors } from '@/theme/colors';
 
-export default function App() {
+const RootLayout = () => {
   const [playfairLoaded] = usePlayfairDisplay({
     PlayfairDisplay_600SemiBold,
     PlayfairDisplay_700Bold,
@@ -37,8 +39,16 @@ export default function App() {
 
   return (
     <>
-      <WelcomeScreen />
       <StatusBar style="light" />
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.background },
+          animation: 'fade',
+        }}
+      />
     </>
   );
-}
+};
+
+export default RootLayout;

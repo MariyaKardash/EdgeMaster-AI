@@ -4,7 +4,7 @@ import { Animated, Easing } from 'react-native';
 import { styles } from './p2p-node.styles';
 import type { P2PNodeProps } from './p2p-node.types';
 
-export function P2PNode({ size, delay, style }: P2PNodeProps) {
+export const P2PNode = ({ size, delay, style }: P2PNodeProps) => {
   const opacity = useMemo(() => new Animated.Value(0.3), []);
   const scale = useMemo(() => new Animated.Value(1), []);
 
@@ -56,4 +56,4 @@ export function P2PNode({ size, delay, style }: P2PNodeProps) {
       ]}
     />
   );
-}
+};

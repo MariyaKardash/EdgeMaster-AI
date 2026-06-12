@@ -4,7 +4,7 @@ import Svg, { Defs, Pattern, Path, Rect } from 'react-native-svg';
 import { colors } from '@/theme';
 import { styles } from './hex-grid-overlay.styles';
 
-export function HexGridOverlay() {
+export const HexGridOverlay = () => {
   const { width, height } = useWindowDimensions();
 
   return (
@@ -23,4 +23,4 @@ export function HexGridOverlay() {
       </Svg>
     </View>
   );
-}
+};

@@ -2,7 +2,7 @@ import { View } from 'react-native';
 
 import type { DotProps } from './dot.types';
 
-export function Dot({ color, size = 6, style }: DotProps) {
+export const Dot = ({ color, size = 6, style }: DotProps) => {
   return (
     <View
       style={[
@@ -16,4 +16,4 @@ export function Dot({ color, size = 6, style }: DotProps) {
       ]}
     />
   );
-}
+};

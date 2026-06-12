@@ -4,7 +4,7 @@ import Svg, { Line } from 'react-native-svg';
 import { colors } from '@/theme';
 import { styles } from './connection-lines.styles';
 
-export function ConnectionLines() {
+export const ConnectionLines = () => {
   const { width, height } = useWindowDimensions();
 
   return (
@@ -38,4 +38,4 @@ export function ConnectionLines() {
       />
     </Svg>
   );
-}
+};
