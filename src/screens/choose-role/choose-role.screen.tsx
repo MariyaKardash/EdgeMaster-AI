@@ -9,10 +9,11 @@ import type { ChooseRoleScreenProps, UserRole } from './choose-role.types';
 export const ChooseRoleScreen = ({ onSelectRole }: ChooseRoleScreenProps) => {
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
 
+  const isContinueDisabled = selectedRole === null;
+
   const handleContinue = () => {
-    if (selectedRole) {
-      onSelectRole?.(selectedRole);
-    }
+    if (!selectedRole) return;
+    onSelectRole?.(selectedRole);
   };
 
   return (
@@ -44,10 +45,11 @@ export const ChooseRoleScreen = ({ onSelectRole }: ChooseRoleScreenProps) => {
 
       <View style={styles.footer}>
         <Button
+          key={isContinueDisabled ? 'disabled' : 'enabled'}
           title="Continue"
           icon="arrow-forward"
           fullWidth
-          disabled={!selectedRole}
+          disabled={isContinueDisabled}
           onPress={handleContinue}
         />
 

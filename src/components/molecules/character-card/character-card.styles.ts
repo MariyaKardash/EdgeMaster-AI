@@ -39,6 +39,9 @@ export const styles = StyleSheet.create((theme) => ({
     padding: theme.spacing.md,
     overflow: 'hidden',
   },
+  cardDisabled: {
+    opacity: 0.45,
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',

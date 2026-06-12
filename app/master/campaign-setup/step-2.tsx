@@ -8,9 +8,7 @@ const CampaignSetupStep2Route = () => {
   return (
     <CampaignSetupStep2Screen
       onBack={() => router.back()}
-      onContinue={() => {
-        // TODO: navigate to campaign setup step 3
-      }}
+      onContinue={() => router.push('/master/campaign-setup/step-3')}
     />
   );
 };

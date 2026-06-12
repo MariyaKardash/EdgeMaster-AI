@@ -15,5 +15,6 @@ export type CharacterCardPlayer = {
 export type CharacterCardProps = {
   player: CharacterCardPlayer;
   selected: boolean;
+  disabled?: boolean;
   onPress: () => void;
 };

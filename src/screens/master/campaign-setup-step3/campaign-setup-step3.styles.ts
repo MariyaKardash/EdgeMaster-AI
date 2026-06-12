@@ -13,23 +13,13 @@ export const styles = StyleSheet.create((theme) => ({
   scrollContent: {
     paddingHorizontal: theme.spacing.containerMargin,
     paddingTop: theme.spacing.md,
-    paddingBottom: theme.spacing.xl + theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
     gap: theme.spacing.lg,
   },
-  sectionHeader: {
-    marginBottom: theme.spacing.sm,
-    alignItems: 'center',
-  },
-  sectionSubtitle: {
-    color: theme.colors.onSurfaceVariant,
-    fontStyle: 'italic',
-    textAlign: 'center',
-    maxWidth: 360,
-  },
-  characterList: {
+  itemList: {
     gap: theme.spacing.md,
   },
-  newHeroCard: {
+  newItemCard: {
     marginTop: theme.spacing.sm,
     borderWidth: 2,
     borderStyle: 'dashed',
@@ -39,11 +29,11 @@ export const styles = StyleSheet.create((theme) => ({
     padding: theme.spacing.lg,
     gap: theme.spacing.lg,
   },
-  newHeroIntro: {
+  newItemIntro: {
     alignItems: 'center',
     gap: theme.spacing.md,
   },
-  newHeroIcon: {
+  newItemIcon: {
     width: 48,
     height: 48,
     borderRadius: theme.radius.full,
@@ -51,16 +41,16 @@ export const styles = StyleSheet.create((theme) => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  newHeroTitle: {
+  newItemTitle: {
     color: theme.colors.onSurface,
     textAlign: 'center',
   },
-  newHeroSubtitle: {
+  newItemSubtitle: {
     color: theme.colors.onSurfaceVariant,
     textAlign: 'center',
     paddingHorizontal: theme.spacing.md,
   },
-  newHeroForm: {
+  newItemForm: {
     gap: theme.spacing.md,
   },
   field: {
@@ -90,46 +80,27 @@ export const styles = StyleSheet.create((theme) => ({
     lineHeight: theme.textStyles.bodyMd.lineHeight,
     color: theme.colors.onSurface,
   },
-  statsSection: {
-    gap: theme.spacing.sm,
+  descriptionInput: {
+    height: 96,
+    textAlignVertical: 'top',
   },
-  statsHeader: {
+  forgeButton: {
+    marginTop: theme.spacing.xs,
+    borderWidth: 1,
+    borderColor: withAlphaHex('primary', 0.3),
+    backgroundColor: withAlphaHex('primary', 0.2),
+    borderRadius: theme.radius.md,
+    paddingVertical: theme.spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     gap: theme.spacing.sm,
   },
-  statsHeaderLabel: {
-    color: withAlphaHex('primary', 0.7),
-    marginLeft: theme.spacing.xs,
-  },
-  manualStatsRow: {
-    flexDirection: 'row',
-    gap: theme.spacing.sm,
-  },
-  manualStatField: {
-    flex: 1,
-    gap: theme.spacing.xs,
-  },
-  manualStatLabel: {
-    color: withAlphaHex('primary', 0.7),
-    textAlign: 'center',
-    fontSize: 10,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
-  },
-  statInput: {
-    backgroundColor: theme.colors.surfaceContainer,
-    borderWidth: 1,
-    borderColor: withAlphaHex('primary', 0.1),
-    borderRadius: theme.radius.md,
-    paddingHorizontal: theme.spacing.sm,
-    paddingVertical: theme.spacing.sm,
-    fontFamily: theme.textStyles.bodyMd.fontFamily,
+  forgeButtonLabel: {
+    color: theme.colors.primary,
+    fontFamily: theme.textStyles.labelMd.fontFamily,
     fontSize: theme.textStyles.bodyMd.fontSize,
-    lineHeight: theme.textStyles.bodyMd.lineHeight,
-    color: theme.colors.onSurface,
-    textAlign: 'center',
+    fontWeight: '700',
   },
   footer: {
     paddingTop: theme.spacing.lg,

@@ -33,16 +33,26 @@ export const Button = ({
     );
   }
 
-  return <EnabledButton title={title} onPress={onPress} iconElement={iconElement} />;
+  return (
+    <EnabledButton
+      title={title}
+      onPress={onPress}
+      iconElement={iconElement}
+      fullWidth={fullWidth}
+    />
+  );
 };
 
 type EnabledButtonProps = {
   title: string;
   onPress?: () => void;
   iconElement: ReactNode;
+  fullWidth: boolean;
 };
 
-const EnabledButton = ({ title, onPress, iconElement }: EnabledButtonProps) => {
+const EnabledButton = ({ title, onPress, iconElement, fullWidth }: EnabledButtonProps) => {
+  styles.useVariants({ fullWidth });
+
   const pressed = useSharedValue(0);
 
   const animatedStyle = useAnimatedStyle(() => ({

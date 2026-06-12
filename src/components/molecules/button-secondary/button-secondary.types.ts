@@ -7,5 +7,6 @@ export type ButtonSecondaryProps = {
   icon?: ComponentProps<typeof MaterialIcons>['name'];
   iconPosition?: 'leading' | 'trailing';
   fullWidth?: boolean;
+  compact?: boolean;
   disabled?: boolean;
 };
