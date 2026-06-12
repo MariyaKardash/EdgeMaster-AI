@@ -13,13 +13,11 @@ export const styles = StyleSheet.create((theme) => ({
           width: '100%',
         },
       },
-      disabled: {
-        true: {
-          shadowOpacity: 0,
-          elevation: 0,
-        },
-      },
     },
+  },
+  shadowWrapperDisabled: {
+    shadowOpacity: 0,
+    elevation: 0,
   },
   button: {
     flexDirection: 'row',
@@ -30,12 +28,8 @@ export const styles = StyleSheet.create((theme) => ({
     paddingHorizontal: theme.spacing.xl + theme.spacing.sm,
     backgroundColor: theme.colors.primaryContainer,
     borderRadius: theme.radius.md,
-    variants: {
-      disabled: {
-        true: {
-          opacity: 0.45,
-        },
-      },
-    },
+  },
+  buttonDisabled: {
+    opacity: 0.45,
   },
 }));

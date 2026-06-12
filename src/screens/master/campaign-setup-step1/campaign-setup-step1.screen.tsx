@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { ScrollView, TextInput, View } from 'react-native';
 
 import { Button, Icon, Text, TextField } from '@/components';
@@ -23,17 +23,17 @@ import type {
 } from './campaign-setup-step1.types';
 
 export const CampaignSetupStep1Screen = ({ onContinue, onBack }: CampaignSetupStep1ScreenProps) => {
-  const {
-    control,
-    handleSubmit,
-    formState: { isValid },
-  } = useForm<CampaignSetupStep1FormValues>({
+  const { control, handleSubmit } = useForm<CampaignSetupStep1FormValues>({
     resolver: zodResolver(campaignSetupStep1Schema),
     defaultValues: { campaignName: '', description: '' },
     mode: 'onChange',
   });
 
+  const campaignName = useWatch({ control, name: 'campaignName' }) ?? '';
+  const isContinueDisabled = campaignName.trim().length === 0;
+
   const onSubmit = (values: CampaignSetupStep1FormValues) => {
+    if (!values.campaignName.trim()) return;
     onContinue?.(values);
   };
 
@@ -132,7 +132,7 @@ export const CampaignSetupStep1Screen = ({ onContinue, onBack }: CampaignSetupSt
           title="Continue"
           icon="arrow-forward"
           fullWidth
-          disabled={!isValid}
+          disabled={isContinueDisabled}
           onPress={handleSubmit(onSubmit)}
         />
       </View>
