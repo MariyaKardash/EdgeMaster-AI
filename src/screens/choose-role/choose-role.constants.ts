@@ -7,24 +7,26 @@ type RoleOption = {
   title: string;
   description: string;
   icon: RoleCardIcon;
-  overlayIcon?: RoleCardIcon;
   accentColor: string;
 };
+
+export const SUBTITLE =
+  'Step into the realm as a storyteller or an adventurer — your table awaits.';
 
 export const ROLE_OPTIONS: RoleOption[] = [
   {
     id: 'master',
-    title: 'MASTER',
+    title: 'Master',
     description: 'Host the adventure, manage chapters & players',
-    icon: 'build',
-    accentColor: colors.gameMaster,
+    icon: 'auto-awesome',
+    accentColor: colors.primary,
   },
   {
     id: 'player',
-    title: 'PLAYER',
+    title: 'Player',
     description: 'Join a session and play your character',
     icon: 'shield',
-    accentColor: colors.player,
+    accentColor: colors.primary,
   },
 ];
 

@@ -3,52 +3,57 @@ import { StyleSheet } from 'react-native-unistyles';
 export const styles = StyleSheet.create((theme) => ({
   shadowWrapper: {
     width: '100%',
-    borderRadius: theme.radius.xl,
+    borderRadius: theme.radius.lg,
   },
   card: {
-    backgroundColor: theme.colors.surfaceContainerHigh,
-    borderRadius: theme.radius.xl,
+    backgroundColor: theme.colors.surfaceContainerLow,
+    borderRadius: theme.radius.lg,
     borderWidth: 1,
     padding: theme.spacing.lg,
-    alignItems: 'center',
     overflow: 'hidden',
   },
-  parchmentOverlay: {
-    ...StyleSheet.absoluteFill,
-    zIndex: 0,
+  ambientGlow: {
+    position: 'absolute',
+    top: -64,
+    right: -64,
+    width: 128,
+    height: 128,
+    borderRadius: theme.radius.full,
   },
-  content: {
-    alignItems: 'center',
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: theme.spacing.md,
     zIndex: 1,
   },
   iconCircle: {
-    width: 96,
-    height: 96,
+    width: 48,
+    height: 48,
     borderRadius: theme.radius.full,
+    backgroundColor: theme.colors.surfaceContainer,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: theme.spacing.md,
     borderWidth: 1,
   },
-  iconOverlay: {
-    position: 'absolute',
-    bottom: 22,
-    right: 22,
+  headerText: {
+    flex: 1,
+    minWidth: 0,
+    gap: theme.spacing.xs,
   },
   title: {
-    marginBottom: theme.spacing.xs,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   description: {
-    maxWidth: 240,
-    textAlign: 'center',
+    color: theme.colors.onSurfaceVariant,
   },
-  glow: {
+  selectedIndicator: {
     position: 'absolute',
-    bottom: -48,
-    right: -48,
-    width: 192,
-    height: 192,
+    top: theme.spacing.md,
+    right: theme.spacing.md,
+    width: 8,
+    height: 8,
     borderRadius: theme.radius.full,
-    opacity: 0.5,
+    zIndex: 2,
   },
 }));
