@@ -12,9 +12,12 @@ import {
   useFonts as usePlayfairDisplay,
 } from '@expo-google-fonts/playfair-display';
 import { SpaceMono_400Regular, useFonts as useSpaceMono } from '@expo-google-fonts/space-mono';
+import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { styles } from '@/app.styles';
 import { registerAppDevMenuItems } from '@/dev/register-dev-menu';
@@ -43,16 +46,20 @@ const RootLayout = () => {
   }
 
   return (
-    <>
-      <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.background },
-          animation: 'fade',
-        }}
-      />
-    </>
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaProvider>
+        <BottomSheetModalProvider>
+          <StatusBar style="light" />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: colors.background },
+              animation: 'fade',
+            }}
+          />
+        </BottomSheetModalProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 };
 

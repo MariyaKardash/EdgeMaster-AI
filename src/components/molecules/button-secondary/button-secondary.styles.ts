@@ -22,6 +22,13 @@ export const styles = StyleSheet.create((theme) => ({
     borderColor: theme.colors.primary,
     borderRadius: theme.radius.md,
     variants: {
+      compact: {
+        true: {
+          paddingVertical: theme.spacing.xs,
+          paddingHorizontal: theme.spacing.sm,
+          gap: theme.spacing.xs,
+        },
+      },
       disabled: {
         true: {
           opacity: 0.45,

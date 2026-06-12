@@ -1,3 +1,5 @@
+import 'react-native-gesture-handler';
+
 import '@/theme/unistyles';
 
 import { registerRootComponent } from 'expo';
