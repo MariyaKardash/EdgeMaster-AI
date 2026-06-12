@@ -1,12 +1,12 @@
 import { useRouter } from 'expo-router';
 
-import { JoinSessionScreen } from '@/screens/player/join-session';
+import { JoinSessionScreen, type JoinSessionConnectPayload } from '@/screens/player/join-session';
 
 const JoinSessionRoute = () => {
   const router = useRouter();
 
-  const handleConnect = (_payload: { campaignName: string; sessionHex: string }) => {
-    // TODO: connect to local session using sessionHex
+  const handleConnect = (_payload: JoinSessionConnectPayload) => {
+    router.push('/player/character-selection');
   };
 
   return <JoinSessionScreen onConnect={handleConnect} onBack={() => router.back()} />;
