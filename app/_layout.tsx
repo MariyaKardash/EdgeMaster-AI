@@ -1,5 +1,6 @@
 import '@/theme/unistyles';
 
+import { useEffect } from 'react';
 import {
   DMSans_400Regular,
   DMSans_500Medium,
@@ -19,9 +20,13 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { styles } from '@/app.styles';
+import { registerAppDevMenuItems } from '@/dev/register-dev-menu';
 import { colors } from '@/theme/colors';
 
 const RootLayout = () => {
+  useEffect(() => {
+    registerAppDevMenuItems();
+  }, []);
   const [playfairLoaded] = usePlayfairDisplay({
     PlayfairDisplay_600SemiBold,
     PlayfairDisplay_700Bold,
