@@ -3,7 +3,7 @@ import { Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import { Text } from '@/components';
 import {
-  createHolepunchController,
+  initHolepunchController,
   defaultAlias,
   logHolepunch,
   logHolepunchEvent,
@@ -134,7 +134,7 @@ export const HolepunchPlaygroundScreen = ({
   );
 
   useEffect(() => {
-    const controller = createHolepunchController(handleEvent);
+    const controller = initHolepunchController(handleEvent);
     controllerRef.current = controller;
 
     return () => {

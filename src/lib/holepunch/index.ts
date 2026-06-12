@@ -1,9 +1,10 @@
-export { createHolepunchController } from './createHolepunchController';
 export {
-  defaultAlias,
-  topicHexFromRoom,
+  initHolepunchController,
   type HolepunchController,
   type HolepunchEvent,
   type HolepunchRole,
-} from './holepunch-shared';
-export { logHolepunch, logHolepunchEvent, type HolepunchLogSource } from './holepunch-debug';
+} from './initHolepunchController';
+export { defaultAlias } from './defaultAlias';
+export { topicHexFromRoom } from './topicHexFromRoom';
+export { logHolepunch, type HolepunchLogSource } from './logHolepunch';
+export { logHolepunchEvent } from './logHolepunchEvent';

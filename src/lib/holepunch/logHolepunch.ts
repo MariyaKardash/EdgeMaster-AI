@@ -1,5 +1,3 @@
-import type { HolepunchEvent } from './holepunch-shared';
-
 export type HolepunchLogSource = 'ipc-in' | 'ipc-out' | 'ui' | 'worklet';
 
 export function logHolepunch(
@@ -13,8 +11,4 @@ export function logHolepunch(
   }
 
   console.log(`[holepunch:${source}] ${label}`, data);
-}
-
-export function logHolepunchEvent(source: HolepunchLogSource, event: HolepunchEvent) {
-  logHolepunch(source, event.type, event, { silent: event.type === 'metrics' });
 }

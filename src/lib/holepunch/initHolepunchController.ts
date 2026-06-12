@@ -2,8 +2,27 @@ import b4a from 'b4a';
 import { Worklet } from 'react-native-bare-kit';
 
 import runtimeBundle from './bare/p2p.bundle.js';
-import { logHolepunch, logHolepunchEvent } from './holepunch-debug';
-import type { HolepunchController, HolepunchEvent } from './holepunch-shared';
+import { logHolepunch } from './logHolepunch';
+import { logHolepunchEvent } from './logHolepunchEvent';
+
+export type HolepunchRole = 'host' | 'join';
+
+export type HolepunchEvent =
+  | { type: 'status'; message: string }
+  | { type: 'error'; message: string }
+  | { type: 'stopped' }
+  | { type: 'ready'; role: HolepunchRole; alias: string; topicHex: string }
+  | { type: 'peer-open'; peerId: string; connectionCount: number }
+  | { type: 'peer-closed'; peerId: string; connectionCount: number }
+  | { type: 'metrics'; peers: number; connecting: number }
+  | { type: 'chat'; peerId: string; author: string; text: string; inbound: boolean };
+
+export interface HolepunchController {
+  start(config: { role: HolepunchRole; alias: string; topicHex: string }): void;
+  sendChat(text: string): void;
+  stop(): void;
+  dispose(): void;
+}
 
 type Listener = (event: HolepunchEvent) => void;
 type BareIpc = {
@@ -11,7 +30,7 @@ type BareIpc = {
   write(data: Uint8Array): void;
 };
 
-export function createHolepunchController(listener: Listener): HolepunchController {
+export function initHolepunchController(listener: Listener): HolepunchController {
   const worklet = new Worklet();
   const ipc = worklet.IPC as unknown as BareIpc;
   let buffer = '';
