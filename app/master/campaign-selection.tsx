@@ -8,9 +8,7 @@ const CampaignSelectionRoute = () => {
   return (
     <CampaignSelectionScreen
       onBack={() => router.back()}
-      onStartNew={() => {
-        // TODO: navigate to campaign setup wizard
-      }}
+      onStartNew={() => router.push('/master/campaign-setup/step-1')}
       onContinue={() => {
         // TODO: navigate to session dashboard
       }}

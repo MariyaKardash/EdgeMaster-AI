@@ -40,6 +40,7 @@ export const TextField = ({
     <View style={containerStyle}>
       <TextInput
         {...props}
+        multiline={multiline}
         textAlign={textAlign}
         placeholder={useAndroidCenteredInput && focused ? undefined : placeholder}
         numberOfLines={useAndroidCenteredInput ? 1 : numberOfLines}
