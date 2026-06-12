@@ -14,7 +14,7 @@ import {
   StatusChip,
   Text,
 } from '@/components';
-import { colors } from '@/theme';
+import { colors, withAlpha } from '@/theme';
 import { MAP_IMAGE, MAP_SIZE } from './welcome.constants';
 import { styles } from './welcome.styles';
 import type { WelcomeScreenProps } from './welcome.types';
@@ -71,7 +71,7 @@ export const WelcomeScreen = ({ onGetStarted }: WelcomeScreenProps) => {
   return (
     <View style={styles.container}>
       <LinearGradient
-        colors={['rgba(201, 162, 39, 0.08)', 'transparent']}
+        colors={[withAlpha('primaryContainer', 0.08), colors.transparent]}
         style={styles.ambientGlow}
         start={{ x: 0.96, y: 0.76 }}
         end={{ x: 0.3, y: 0.2 }}
@@ -105,7 +105,7 @@ export const WelcomeScreen = ({ onGetStarted }: WelcomeScreenProps) => {
             <View style={styles.mapClip}>
               <Image source={MAP_IMAGE} style={styles.mapImage} contentFit="cover" />
               <LinearGradient
-                colors={['transparent', colors.background]}
+                colors={[colors.transparent, colors.background]}
                 style={styles.mapGradient}
               />
             </View>

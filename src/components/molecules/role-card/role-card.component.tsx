@@ -1,9 +1,9 @@
 import { Pressable, View } from 'react-native';
 import Animated, { interpolate, useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
-import { scheduleOnUI } from 'react-native-worklets';
 
 import { Icon } from '@/components/atoms/icon';
 import { Text } from '@/components/atoms/text';
+import { withAlphaHex } from '@/theme/color-utils';
 import { animateButtonPressIn, animateButtonPressOut } from '../button/button.press-animation';
 import { styles } from './role-card.styles';
 import type { RoleCardProps } from './role-card.types';
@@ -26,11 +26,11 @@ export const RoleCard = ({
   }));
 
   const handlePressIn = () => {
-    scheduleOnUI(animateButtonPressIn, pressed);
+    animateButtonPressIn(pressed);
   };
 
   const handlePressOut = () => {
-    scheduleOnUI(animateButtonPressOut, pressed);
+    animateButtonPressOut(pressed);
   };
 
   return (
@@ -56,14 +56,18 @@ export const RoleCard = ({
           styles.card,
           animatedStyle,
           {
-            borderColor: selected ? accentColor : `${accentColor}4D`,
+            borderColor: selected ? accentColor : withAlphaHex(accentColor, 0.3),
           },
         ]}
       >
         <View
           style={[
             styles.parchmentOverlay,
-            { backgroundColor: selected ? `${accentColor}24` : `${accentColor}12` },
+            {
+              backgroundColor: selected
+                ? withAlphaHex(accentColor, 0.14)
+                : withAlphaHex(accentColor, 0.07),
+            },
           ]}
         />
         <View style={styles.content}>
@@ -71,8 +75,12 @@ export const RoleCard = ({
             style={[
               styles.iconCircle,
               {
-                backgroundColor: selected ? `${accentColor}33` : `${accentColor}1A`,
-                borderColor: selected ? `${accentColor}66` : `${accentColor}33`,
+                backgroundColor: selected
+                  ? withAlphaHex(accentColor, 0.2)
+                  : withAlphaHex(accentColor, 0.1),
+                borderColor: selected
+                  ? withAlphaHex(accentColor, 0.4)
+                  : withAlphaHex(accentColor, 0.2),
               },
             ]}
           >
@@ -93,7 +101,10 @@ export const RoleCard = ({
         </View>
 
         <View
-          style={[styles.glow, { backgroundColor: `${accentColor}${selected ? '1A' : '0D'}` }]}
+          style={[
+            styles.glow,
+            { backgroundColor: withAlphaHex(accentColor, selected ? 0.1 : 0.05) },
+          ]}
         />
       </AnimatedPressable>
     </View>

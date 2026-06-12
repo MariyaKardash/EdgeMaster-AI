@@ -3,20 +3,20 @@ import Animated, { interpolate, useAnimatedStyle, useSharedValue } from 'react-n
 
 import { Icon } from '@/components/atoms/icon';
 import { Text } from '@/components/atoms/text';
-import { animateButtonPressIn, animateButtonPressOut } from './button.press-animation';
-import { styles } from './button.styles';
-import type { ButtonProps } from './button.types';
+import { animateButtonPressIn, animateButtonPressOut } from '../button/button.press-animation';
+import { styles } from './button-secondary.styles';
+import type { ButtonSecondaryProps } from './button-secondary.types';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-export const Button = ({
+export const ButtonSecondary = ({
   title,
   onPress,
   icon,
-  iconSize = 20,
+  iconPosition = 'trailing',
   fullWidth = false,
   disabled = false,
-}: ButtonProps) => {
+}: ButtonSecondaryProps) => {
   const pressed = useSharedValue(0);
 
   styles.useVariants({ fullWidth, disabled });
@@ -36,8 +36,10 @@ export const Button = ({
     animateButtonPressOut(pressed);
   };
 
+  const iconElement = icon ? <Icon name={icon} size={16} color="primary" /> : null;
+
   return (
-    <View style={styles.shadowWrapper}>
+    <View style={styles.wrapper}>
       <AnimatedPressable
         style={[styles.button, !disabled && animatedStyle]}
         onPress={disabled ? undefined : onPress}
@@ -46,8 +48,9 @@ export const Button = ({
         disabled={disabled}
         accessibilityState={{ disabled }}
       >
-        <Text variant="buttonLabel">{title}</Text>
-        {icon ? <Icon name={icon} size={iconSize} color="onPrimary" /> : null}
+        {iconPosition === 'leading' ? iconElement : null}
+        <Text variant="buttonSecondaryLabel">{title}</Text>
+        {iconPosition === 'trailing' ? iconElement : null}
       </AnimatedPressable>
     </View>
   );
