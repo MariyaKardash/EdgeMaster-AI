@@ -38,8 +38,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.edgemaster.ai",
-      "appleTeamId": "9J49H92WB6"
+      "bundleIdentifier": "com.edgemaster.ai"
     },
     "android": {
       "package": "com.edgemaster.ai",
