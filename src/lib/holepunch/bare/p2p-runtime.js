@@ -129,14 +129,13 @@ async function initStorage(message) {
     await store.close();
   }
 
-  // path to storage
-  // manages multiple notebooks on disk
+  // initialize corestore on disk
   store = new Corestore(storagePath);
   await store.ready();
-  // one notebook (private)
+  // run specific storage by name from this folder
   const localCore = store.get({ name: LOCAL_STORE_NAME });
   await localCore.ready();
-  // table of contents on top of a notebook, so you can look up "@campaign/xyz" instead of reading the whole log
+  // turn storage into table of contents like db
   localBee = new Hyperbee(localCore, {
     keyEncoding: 'utf-8',
     valueEncoding: 'json',
