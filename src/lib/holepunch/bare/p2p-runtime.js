@@ -266,7 +266,6 @@ async function putRecord(message, options = {}) {
   const bee = activeBeeForKey(key);
 
   await bee.put(key, message.value);
-  await bee.flush();
 
   send({
     type: 'db-put',
@@ -353,7 +352,6 @@ async function delRecord(message) {
   const bee = activeBeeForKey(key);
 
   await bee.del(key);
-  await bee.flush();
 
   send({
     type: 'db-del',
