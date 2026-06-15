@@ -4,6 +4,7 @@ import { Worklet } from 'react-native-bare-kit';
 import runtimeBundle from '@/lib/holepunch/bare/p2p.bundle.js';
 import { logHolepunch } from '@/lib/holepunch/logHolepunch';
 import { logHolepunchEvent } from '@/lib/holepunch/logHolepunchEvent';
+import { randomUUID } from '@/lib/randomUUID';
 
 import type { P2pDbValue, P2pWorkletClient, P2pWorkletCommand, P2pWorkletEvent } from './types';
 
@@ -18,7 +19,7 @@ type PendingRequest = {
 };
 
 function createRequestId() {
-  return crypto.randomUUID();
+  return randomUUID();
 }
 
 function send(ipc: BareIpc, payload: P2pWorkletCommand | Record<string, unknown>) {
