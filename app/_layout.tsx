@@ -20,6 +20,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { styles } from '@/app.styles';
+import { CampaignProvider } from '@/contexts/campaign-context';
 import { registerAppDevMenuItems } from '@/dev/register-dev-menu';
 import { colors } from '@/theme/colors';
 
@@ -48,16 +49,18 @@ const RootLayout = () => {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        <BottomSheetModalProvider>
-          <StatusBar style="light" />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: colors.background },
-              animation: 'fade',
-            }}
-          />
-        </BottomSheetModalProvider>
+        <CampaignProvider>
+          <BottomSheetModalProvider>
+            <StatusBar style="light" />
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.background },
+                animation: 'fade',
+              }}
+            />
+          </BottomSheetModalProvider>
+        </CampaignProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
