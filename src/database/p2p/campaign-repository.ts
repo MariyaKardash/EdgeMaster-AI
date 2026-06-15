@@ -25,6 +25,7 @@ import {
 } from '../entities';
 import { createEntity, generateSessionCode, touchEntity } from '../utils';
 import type { P2pWorkletClient } from './types';
+import { logHolepunch } from '@/lib/holepunch/logHolepunch';
 import { sessionTopicHex } from '@/lib/holepunch/sessionTopicHex';
 
 type CampaignSummary = {
@@ -36,12 +37,18 @@ type CampaignSummary = {
 export class CampaignRepository {
   constructor(private readonly worklet: P2pWorkletClient) {}
 
+  private log(method: string, data: unknown) {
+    logHolepunch('campaign-repo', method, data);
+  }
+
   private parse<T>(schema: { parse: (value: unknown) => T }, value: unknown) {
     return schema.parse(value);
   }
 
   private async readLocalCampaignIds() {
     const value = await this.worklet.get<string[]>(dbKeys.metaCampaignList());
+
+    this.log('readLocalCampaignIds', { value });
 
     return value ?? [];
   }
@@ -51,6 +58,7 @@ export class CampaignRepository {
   }
 
   async listLocalCampaigns(preserveOpenCampaignId?: string | null): Promise<CampaignSummary[]> {
+    this.log('listLocalCampaigns', { preserveOpenCampaignId });
     const campaignIds = await this.readLocalCampaignIds();
     const summaries: CampaignSummary[] = [];
 
@@ -84,10 +92,16 @@ export class CampaignRepository {
       await this.worklet.openCampaign(preserveOpenCampaignId);
     }
 
+    this.log('listLocalCampaigns:result', {
+      count: summaries.length,
+      campaignIds: summaries.map((summary) => summary.campaign.id),
+    });
+
     return summaries;
   }
 
   async createCampaign(name: string): Promise<{ campaign: Campaign; coreKey: string }> {
+    this.log('createCampaign', { name });
     const campaign = createEntity<Campaign>({
       name: name.trim(),
       activeChapterId: null,
@@ -102,29 +116,45 @@ export class CampaignRepository {
       await this.writeLocalCampaignIds([campaign.id, ...campaignIds]);
     }
 
-    return {
+    const result = {
       campaign,
       coreKey: opened.coreKey,
     };
+
+    this.log('createCampaign:result', {
+      campaignId: campaign.id,
+      coreKey: opened.coreKey,
+    });
+
+    return result;
   }
 
   async openCampaign(campaignId: string, coreKey?: string) {
-    return this.worklet.openCampaign(campaignId, coreKey);
+    this.log('openCampaign', { campaignId, hasCoreKey: Boolean(coreKey) });
+    const opened = await this.worklet.openCampaign(campaignId, coreKey);
+    this.log('openCampaign:result', { campaignId, coreKey: opened.coreKey });
+    return opened;
   }
 
   async closeCampaign() {
+    this.log('closeCampaign', {});
     await this.worklet.closeCampaign();
   }
 
   async getCampaign(campaignId: string) {
+    this.log('getCampaign', { campaignId });
     const value = await this.worklet.get<Campaign>(dbKeys.campaign(campaignId));
 
-    return value ? this.parse(campaignSchema, value) : null;
+    const campaign = value ? this.parse(campaignSchema, value) : null;
+    this.log('getCampaign:result', { campaignId, found: Boolean(campaign) });
+    return campaign;
   }
 
   async updateCampaign(campaign: Campaign) {
+    this.log('updateCampaign', { campaignId: campaign.id });
     const next = touchEntity(campaign);
     await this.worklet.put(dbKeys.campaign(next.id), next);
+    this.log('updateCampaign:result', { campaignId: next.id });
     return next;
   }
 
@@ -135,6 +165,11 @@ export class CampaignRepository {
     order: number;
     generationSource?: Chapter['generationSource'];
   }) {
+    this.log('createChapter', {
+      campaignId: input.campaignId,
+      title: input.title,
+      order: input.order,
+    });
     const chapter = createEntity<Chapter>({
       campaignId: input.campaignId,
       title: input.title.trim(),
@@ -150,10 +185,12 @@ export class CampaignRepository {
       chapter.id,
     );
 
+    this.log('createChapter:result', { chapterId: chapter.id, campaignId: input.campaignId });
     return chapter;
   }
 
   async listChapters(campaignId: string) {
+    this.log('listChapters', { campaignId });
     const entries = await this.worklet.list<string>(
       dbKeys.indexChaptersByCampaign(campaignId),
       dbPrefixEnd(dbKeys.indexChaptersByCampaign(campaignId)),
@@ -168,10 +205,13 @@ export class CampaignRepository {
       }
     }
 
-    return chapters.sort((left, right) => left.order - right.order);
+    chapters.sort((left, right) => left.order - right.order);
+    this.log('listChapters:result', { campaignId, count: chapters.length });
+    return chapters;
   }
 
   async activateChapter(campaignId: string, chapterId: string) {
+    this.log('activateChapter', { campaignId, chapterId });
     const campaign = await this.getCampaign(campaignId);
 
     if (!campaign) {
@@ -198,13 +238,22 @@ export class CampaignRepository {
       activeChapterId: chapterId,
     });
 
-    return {
+    const result = {
       campaign: campaignNext,
       chapters: updatedChapters,
     };
+
+    this.log('activateChapter:result', {
+      campaignId,
+      chapterId,
+      activeChapterId: campaignNext.activeChapterId,
+    });
+
+    return result;
   }
 
   async createSession(campaignId: string, chapterId: string) {
+    this.log('createSession', { campaignId, chapterId });
     const existingSessions = await this.listSessions(campaignId);
 
     for (const existingSession of existingSessions) {
@@ -225,10 +274,17 @@ export class CampaignRepository {
     await this.worklet.put(dbKeys.session(session.id), session);
     await this.worklet.put(dbKeys.indexSessionByCode(sessionCode), session.id);
 
+    this.log('createSession:result', {
+      sessionId: session.id,
+      sessionCode: session.sessionCode,
+      topicHex: session.topicHex,
+    });
+
     return session;
   }
 
   async getSessionByCode(sessionCode: string, options?: { wait?: boolean }) {
+    this.log('getSessionByCode', { sessionCode, wait: options?.wait ?? false });
     const indexKey = dbKeys.indexSessionByCode(sessionCode);
 
     const sessionId = options?.wait
@@ -236,6 +292,7 @@ export class CampaignRepository {
       : await this.worklet.get<string>(indexKey);
 
     if (!sessionId || typeof sessionId !== 'string') {
+      this.log('getSessionByCode:result', { sessionCode, found: false });
       return null;
     }
 
@@ -244,19 +301,35 @@ export class CampaignRepository {
       ? await this.worklet.waitForDbKey(sessionKey)
       : await this.worklet.get<Session>(sessionKey);
 
-    return value && typeof value === 'object' ? this.parse(sessionSchema, value) : null;
+    const session = value && typeof value === 'object' ? this.parse(sessionSchema, value) : null;
+    this.log('getSessionByCode:result', {
+      sessionCode,
+      found: Boolean(session),
+      sessionId: session?.id,
+    });
+    return session;
   }
 
   async listSessions(campaignId: string) {
+    this.log('listSessions', { campaignId });
     const entries = await this.worklet.list<Session>(dbKeys.session(''), dbPrefixEnd('@session/'));
 
-    return entries
+    const sessions = entries
       .map((entry) => this.parse(sessionSchema, entry.value))
       .filter((session) => session.campaignId === campaignId)
       .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+
+    this.log('listSessions:result', {
+      campaignId,
+      count: sessions.length,
+      activeCount: sessions.filter((session) => session.status === 'active').length,
+    });
+
+    return sessions;
   }
 
   async endSession(sessionId: string) {
+    this.log('endSession', { sessionId });
     const value = await this.worklet.get<Session>(dbKeys.session(sessionId));
 
     if (!value) {
@@ -265,10 +338,12 @@ export class CampaignRepository {
 
     const session = touchEntity({ ...this.parse(sessionSchema, value), status: 'ended' as const });
     await this.worklet.put(dbKeys.session(session.id), session);
+    this.log('endSession:result', { sessionId: session.id, status: session.status });
     return session;
   }
 
   async summarizeChapter(chapterId: string, summary: string) {
+    this.log('summarizeChapter', { chapterId, summaryLength: summary.length });
     const value = await this.worklet.get<Chapter>(dbKeys.chapter(chapterId));
 
     if (!value) {
@@ -282,20 +357,27 @@ export class CampaignRepository {
     });
 
     await this.worklet.put(dbKeys.chapter(chapter.id), chapter);
+    this.log('summarizeChapter:result', { chapterId: chapter.id, status: chapter.status });
     return chapter;
   }
 
   async createCharacterTemplate(input: Omit<CharacterTemplate, 'id' | 'createdAt' | 'updatedAt'>) {
+    this.log('createCharacterTemplate', {
+      campaignId: input.campaignId,
+      name: input.name,
+    });
     const template = createEntity<CharacterTemplate>(input);
     await this.worklet.put(dbKeys.characterTemplate(template.id), template);
     await this.worklet.put(
       `${dbKeys.indexCharacterTemplatesByCampaign(input.campaignId)}${template.id}`,
       template.id,
     );
+    this.log('createCharacterTemplate:result', { templateId: template.id });
     return template;
   }
 
   async listCharacterTemplates(campaignId: string) {
+    this.log('listCharacterTemplates', { campaignId });
     const entries = await this.worklet.list<string>(
       dbKeys.indexCharacterTemplatesByCampaign(campaignId),
       dbPrefixEnd(dbKeys.indexCharacterTemplatesByCampaign(campaignId)),
@@ -312,20 +394,24 @@ export class CampaignRepository {
       }
     }
 
+    this.log('listCharacterTemplates:result', { campaignId, count: templates.length });
     return templates;
   }
 
   async createItemTemplate(input: Omit<ItemTemplate, 'id' | 'createdAt' | 'updatedAt'>) {
+    this.log('createItemTemplate', { campaignId: input.campaignId, name: input.name });
     const template = createEntity<ItemTemplate>(input);
     await this.worklet.put(dbKeys.itemTemplate(template.id), template);
     await this.worklet.put(
       `${dbKeys.indexItemTemplatesByCampaign(input.campaignId)}${template.id}`,
       template.id,
     );
+    this.log('createItemTemplate:result', { templateId: template.id });
     return template;
   }
 
   async listItemTemplates(campaignId: string) {
+    this.log('listItemTemplates', { campaignId });
     const entries = await this.worklet.list<string>(
       dbKeys.indexItemTemplatesByCampaign(campaignId),
       dbPrefixEnd(dbKeys.indexItemTemplatesByCampaign(campaignId)),
@@ -340,10 +426,12 @@ export class CampaignRepository {
       }
     }
 
+    this.log('listItemTemplates:result', { campaignId, count: templates.length });
     return templates;
   }
 
   async registerPlayer(sessionId: string, displayName: string) {
+    this.log('registerPlayer', { sessionId, displayName });
     const player = createEntity<Player>({
       sessionId,
       displayName: displayName.trim(),
@@ -352,10 +440,12 @@ export class CampaignRepository {
     await this.worklet.put(dbKeys.player(player.id), player);
     await this.worklet.put(`${dbKeys.indexPlayersBySession(sessionId)}${player.id}`, player.id);
 
+    this.log('registerPlayer:result', { playerId: player.id, sessionId });
     return player;
   }
 
   async listPlayers(sessionId: string) {
+    this.log('listPlayers', { sessionId });
     const entries = await this.worklet.list<string>(
       dbKeys.indexPlayersBySession(sessionId),
       dbPrefixEnd(dbKeys.indexPlayersBySession(sessionId)),
@@ -370,6 +460,7 @@ export class CampaignRepository {
       }
     }
 
+    this.log('listPlayers:result', { sessionId, count: players.length });
     return players;
   }
 
@@ -378,6 +469,10 @@ export class CampaignRepository {
     characterTemplateId: string;
     stats: PlayerCharacter['stats'];
   }) {
+    this.log('assignCharacter', {
+      playerId: input.playerId,
+      characterTemplateId: input.characterTemplateId,
+    });
     const character = createEntity<PlayerCharacter>({
       playerId: input.playerId,
       characterTemplateId: input.characterTemplateId,
@@ -385,10 +480,12 @@ export class CampaignRepository {
     });
 
     await this.worklet.put(dbKeys.playerCharacter(character.id), character);
+    this.log('assignCharacter:result', { characterId: character.id, playerId: input.playerId });
     return character;
   }
 
   async getPlayerCharacter(playerId: string) {
+    this.log('getPlayerCharacter', { playerId });
     const entries = await this.worklet.list<PlayerCharacter>(
       dbKeys.playerCharacter(''),
       dbPrefixEnd('@player-character/'),
@@ -398,7 +495,13 @@ export class CampaignRepository {
       .map((entry) => this.parse(playerCharacterSchema, entry.value))
       .find((character) => character.playerId === playerId);
 
-    return match ?? null;
+    const character = match ?? null;
+    this.log('getPlayerCharacter:result', {
+      playerId,
+      found: Boolean(character),
+      characterId: character?.id,
+    });
+    return character;
   }
 
   async grantItem(input: {
@@ -408,6 +511,12 @@ export class CampaignRepository {
     stats: PlayerItem['stats'];
     quantity?: number;
   }) {
+    this.log('grantItem', {
+      playerCharacterId: input.playerCharacterId,
+      itemTemplateId: input.itemTemplateId,
+      name: input.name,
+      quantity: input.quantity ?? 1,
+    });
     const item = createEntity<PlayerItem>({
       playerCharacterId: input.playerCharacterId,
       itemTemplateId: input.itemTemplateId,
@@ -425,18 +534,23 @@ export class CampaignRepository {
       stats: input.stats,
     });
 
+    this.log('grantItem:result', { itemId: item.id, playerCharacterId: input.playerCharacterId });
     return item;
   }
 
   async listPlayerItems(playerCharacterId: string) {
+    this.log('listPlayerItems', { playerCharacterId });
     const entries = await this.worklet.list<PlayerItem>(
       dbKeys.playerItem(''),
       dbPrefixEnd('@player-item/'),
     );
 
-    return entries
+    const items = entries
       .map((entry) => this.parse(playerItemSchema, entry.value))
       .filter((item) => item.playerCharacterId === playerCharacterId);
+
+    this.log('listPlayerItems:result', { playerCharacterId, count: items.length });
+    return items;
   }
 
   async recordStatsHistory(input: {
@@ -444,6 +558,10 @@ export class CampaignRepository {
     stats: StatsHistoryEntry['stats'];
     source?: string;
   }) {
+    this.log('recordStatsHistory', {
+      playerCharacterId: input.playerCharacterId,
+      source: input.source,
+    });
     const entry = createEntity<StatsHistoryEntry>({
       playerCharacterId: input.playerCharacterId,
       stats: input.stats,
@@ -451,47 +569,68 @@ export class CampaignRepository {
     });
 
     await this.worklet.put(dbKeys.statsHistory(entry.id), entry);
+    this.log('recordStatsHistory:result', { entryId: entry.id });
     return entry;
   }
 
   async listStatsHistory(playerCharacterId: string) {
+    this.log('listStatsHistory', { playerCharacterId });
     const entries = await this.worklet.list<StatsHistoryEntry>(
       dbKeys.statsHistory(''),
       dbPrefixEnd('@stats-history/'),
     );
 
-    return entries
+    const history = entries
       .map((entry) => this.parse(statsHistoryEntrySchema, entry.value))
       .filter((item) => item.playerCharacterId === playerCharacterId)
       .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+
+    this.log('listStatsHistory:result', { playerCharacterId, count: history.length });
+    return history;
   }
 
   async recordItemHistory(input: Omit<ItemHistoryEntry, 'id' | 'createdAt' | 'updatedAt'>) {
+    this.log('recordItemHistory', {
+      playerCharacterId: input.playerCharacterId,
+      action: input.action,
+      itemName: input.itemName,
+    });
     const entry = createEntity<ItemHistoryEntry>(input);
     await this.worklet.put(dbKeys.itemHistory(entry.id), entry);
+    this.log('recordItemHistory:result', { entryId: entry.id });
     return entry;
   }
 
   async listItemHistory(playerCharacterId: string) {
+    this.log('listItemHistory', { playerCharacterId });
     const entries = await this.worklet.list<ItemHistoryEntry>(
       dbKeys.itemHistory(''),
       dbPrefixEnd('@item-history/'),
     );
 
-    return entries
+    const history = entries
       .map((entry) => this.parse(itemHistoryEntrySchema, entry.value))
       .filter((item) => item.playerCharacterId === playerCharacterId)
       .sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+
+    this.log('listItemHistory:result', { playerCharacterId, count: history.length });
+    return history;
   }
 
   async createGameEvent(input: Omit<GameEvent, 'id' | 'createdAt' | 'updatedAt'>) {
+    this.log('createGameEvent', {
+      chapterId: input.chapterId,
+      type: input.type,
+    });
     const event = createEntity<GameEvent>(input);
     await this.worklet.put(dbKeys.gameEvent(event.id), event);
     await this.worklet.put(`${dbKeys.indexEventsByChapter(input.chapterId)}${event.id}`, event.id);
+    this.log('createGameEvent:result', { eventId: event.id, chapterId: input.chapterId });
     return event;
   }
 
   async listGameEvents(chapterId: string) {
+    this.log('listGameEvents', { chapterId });
     const entries = await this.worklet.list<string>(
       dbKeys.indexEventsByChapter(chapterId),
       dbPrefixEnd(dbKeys.indexEventsByChapter(chapterId)),
@@ -506,18 +645,28 @@ export class CampaignRepository {
       }
     }
 
-    return events.sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+    events.sort((left, right) => left.createdAt.localeCompare(right.createdAt));
+    this.log('listGameEvents:result', { chapterId, count: events.length });
+    return events;
   }
 
   async getActiveChapter(campaignId: string) {
+    this.log('getActiveChapter', { campaignId });
     const campaign = await this.getCampaign(campaignId);
 
     if (!campaign?.activeChapterId) {
+      this.log('getActiveChapter:result', { campaignId, found: false });
       return null;
     }
 
     const value = await this.worklet.get<Chapter>(dbKeys.chapter(campaign.activeChapterId));
 
-    return value ? this.parse(chapterSchema, value) : null;
+    const chapter = value ? this.parse(chapterSchema, value) : null;
+    this.log('getActiveChapter:result', {
+      campaignId,
+      found: Boolean(chapter),
+      chapterId: chapter?.id,
+    });
+    return chapter;
   }
 }

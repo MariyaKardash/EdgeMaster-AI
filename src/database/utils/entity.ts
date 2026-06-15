@@ -1,7 +1,9 @@
+import { randomUUID } from '@/lib/randomUUID';
+
 import type { BaseEntity } from '../entities';
 
 export function createEntityId() {
-  return crypto.randomUUID();
+  return randomUUID();
 }
 
 export function nowIso() {

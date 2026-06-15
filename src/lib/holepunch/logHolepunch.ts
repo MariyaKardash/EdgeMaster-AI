@@ -1,4 +1,4 @@
-export type HolepunchLogSource = 'ipc-in' | 'ipc-out' | 'ui' | 'worklet';
+export type HolepunchLogSource = 'campaign-repo' | 'ipc-in' | 'ipc-out' | 'ui' | 'worklet';
 
 export function logHolepunch(
   source: HolepunchLogSource,
