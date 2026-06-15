@@ -9,7 +9,7 @@ const CampaignSetupStep3Route = () => {
     <CampaignSetupStep3Screen
       onBack={() => router.back()}
       onFinalize={() => {
-        // TODO: navigate to campaign created screen
+        router.replace('/master/campaign-created');
       }}
     />
   );
