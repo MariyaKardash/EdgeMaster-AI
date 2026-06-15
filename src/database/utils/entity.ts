@@ -1,4 +1,4 @@
-import type { BaseEntity } from '../entities/base';
+import type { BaseEntity } from '../entities';
 
 export function createEntityId() {
   return crypto.randomUUID();
