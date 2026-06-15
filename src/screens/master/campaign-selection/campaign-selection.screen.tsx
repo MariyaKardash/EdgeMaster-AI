@@ -1,11 +1,12 @@
 import { ScrollView, View } from 'react-native';
 
 import { ButtonSecondary, ContinueCampaignCard, NewCampaignCard, Text } from '@/components';
-import { MOCK_ACTIVE_CAMPAIGN } from './campaign-selection.constants';
 import { styles } from './campaign-selection.styles';
 import type { CampaignSelectionScreenProps } from './campaign-selection.types';
 
 export const CampaignSelectionScreen = ({
+  campaigns,
+  isLoading,
   onBack,
   onStartNew,
   onContinue,
@@ -24,10 +25,18 @@ export const CampaignSelectionScreen = ({
 
         <View style={styles.cards}>
           <NewCampaignCard onPress={() => onStartNew?.()} />
-          <ContinueCampaignCard
-            session={MOCK_ACTIVE_CAMPAIGN}
-            onPress={() => onContinue?.(MOCK_ACTIVE_CAMPAIGN)}
-          />
+          {isLoading ? (
+            <Text variant="bodyMd" style={styles.subtitle}>
+              Loading campaigns...
+            </Text>
+          ) : null}
+          {campaigns?.map((campaign) => (
+            <ContinueCampaignCard
+              key={campaign.campaignId}
+              session={campaign}
+              onPress={() => onContinue?.(campaign)}
+            />
+          ))}
         </View>
       </ScrollView>
 

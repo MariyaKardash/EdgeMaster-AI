@@ -4,22 +4,27 @@ import { useRef } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import { Button, ButtonSecondary, DismissKeyboardView, Icon, Text, TextField } from '@/components';
+import { normalizeSessionCode } from '@/database/utils/session-code';
 import {
-  CAMPAIGN_NAME_PLACEHOLDER,
   FEATURE_ITEMS,
   KEYBOARD_SCROLL_OFFSET,
+  SESSION_CODE_PLACEHOLDER,
 } from './join-session.constants';
 import { joinSessionSchema, type JoinSessionFormValues } from './join-session.schema';
 import { styles } from './join-session.styles';
 import type { JoinSessionScreenProps } from './join-session.types';
-import { encodeCampaignToHex } from './join-session.utils';
 
-export const JoinSessionScreen = ({ onConnect, onBack }: JoinSessionScreenProps) => {
+export const JoinSessionScreen = ({
+  onConnect,
+  onBack,
+  isConnecting,
+  errorMessage,
+}: JoinSessionScreenProps) => {
   const scrollRef = useRef<ScrollView>(null);
 
   const { control, handleSubmit } = useForm<JoinSessionFormValues>({
     resolver: zodResolver(joinSessionSchema),
-    defaultValues: { campaignName: '' },
+    defaultValues: { sessionCode: '' },
   });
 
   const scrollForKeyboard = () => {
@@ -28,10 +33,9 @@ export const JoinSessionScreen = ({ onConnect, onBack }: JoinSessionScreenProps)
     });
   };
 
-  const onSubmit = ({ campaignName }: JoinSessionFormValues) => {
+  const onSubmit = ({ sessionCode }: JoinSessionFormValues) => {
     onConnect?.({
-      campaignName,
-      sessionHex: encodeCampaignToHex(campaignName),
+      sessionCode: normalizeSessionCode(sessionCode),
     });
   };
 
@@ -66,7 +70,7 @@ export const JoinSessionScreen = ({ onConnect, onBack }: JoinSessionScreenProps)
                 <View style={styles.inputWrapper}>
                   <Controller
                     control={control}
-                    name="campaignName"
+                    name="sessionCode"
                     render={({ field: { onChange, onBlur, value } }) => (
                       <TextField
                         value={value}
@@ -74,9 +78,9 @@ export const JoinSessionScreen = ({ onConnect, onBack }: JoinSessionScreenProps)
                         onBlur={onBlur}
                         onFocus={scrollForKeyboard}
                         textAlign="center"
-                        placeholder={CAMPAIGN_NAME_PLACEHOLDER}
+                        placeholder={SESSION_CODE_PLACEHOLDER}
                         autoCorrect={false}
-                        autoCapitalize="none"
+                        autoCapitalize="characters"
                         inputStyle={styles.input}
                       />
                     )}
@@ -90,14 +94,20 @@ export const JoinSessionScreen = ({ onConnect, onBack }: JoinSessionScreenProps)
                 <Text variant="joinSessionHelper" style={styles.helperText}>
                   Ask your Dungeon Master for the session code
                 </Text>
+                {errorMessage ? (
+                  <Text variant="joinSessionHelper" style={styles.helperText}>
+                    {errorMessage}
+                  </Text>
+                ) : null}
               </View>
 
               <View style={styles.actions}>
                 <Button
-                  title="Connect"
+                  title={isConnecting ? 'Connecting...' : 'Connect'}
                   icon="bolt"
                   iconSize={22}
                   fullWidth
+                  disabled={isConnecting}
                   onPress={handleSubmit(onSubmit)}
                 />
 

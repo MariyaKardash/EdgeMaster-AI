@@ -1,9 +1,10 @@
 export type JoinSessionConnectPayload = {
-  campaignName: string;
-  sessionHex: string;
+  sessionCode: string;
 };
 
 export type JoinSessionScreenProps = {
   onConnect?: (payload: JoinSessionConnectPayload) => void;
   onBack?: () => void;
+  isConnecting?: boolean;
+  errorMessage?: string | null;
 };

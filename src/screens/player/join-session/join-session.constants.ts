@@ -1,4 +1,4 @@
-export const CAMPAIGN_NAME_PLACEHOLDER = 'campaign-name';
+export const SESSION_CODE_PLACEHOLDER = 'AB12CD';
 
 export const KEYBOARD_SCROLL_OFFSET = 140;
 

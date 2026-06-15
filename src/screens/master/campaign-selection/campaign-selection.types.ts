@@ -3,6 +3,8 @@ import type { CampaignSessionInfo } from '@/components/molecules/continue-campai
 export type { CampaignSessionInfo };
 
 export type CampaignSelectionScreenProps = {
+  campaigns?: CampaignSessionInfo[];
+  isLoading?: boolean;
   onBack?: () => void;
   onStartNew?: () => void;
   onContinue?: (session: CampaignSessionInfo) => void;

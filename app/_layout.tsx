@@ -16,6 +16,7 @@ import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, View } from 'react-native';
 
 import { styles } from '@/app.styles';
+import { CampaignProvider } from '@/contexts/campaign-context';
 import { colors } from '@/theme/colors';
 
 const RootLayout = () => {
@@ -38,7 +39,7 @@ const RootLayout = () => {
   }
 
   return (
-    <>
+    <CampaignProvider>
       <StatusBar style="light" />
       <Stack
         screenOptions={{
@@ -47,7 +48,7 @@ const RootLayout = () => {
           animation: 'fade',
         }}
       />
-    </>
+    </CampaignProvider>
   );
 };
 
