@@ -4,7 +4,7 @@ import { Alert, View } from 'react-native';
 
 import { ButtonSecondary, Text } from '@/components';
 import { useCampaign } from '@/contexts/campaign-context';
-import { styles } from '@/screens/master/session-dashboard/session-dashboard.styles';
+import { styles } from '@/screens/master/session/master-session.styles';
 
 const MasterSessionRoute = () => {
   const router = useRouter();
