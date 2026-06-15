@@ -1,6 +1,7 @@
 import { View } from 'react-native';
 
-import { Icon, Text } from '@/components';
+import { Icon } from '@/components/atoms/icon';
+import { Text } from '@/components/atoms/text';
 import { styles } from './campaign-summary-card.styles';
 import type { CampaignSummaryCardProps } from './campaign-summary-card.types';
 

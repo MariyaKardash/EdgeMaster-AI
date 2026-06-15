@@ -1,6 +1,8 @@
 import { View } from 'react-native';
 
-import { ButtonSecondary, Icon, Text } from '@/components';
+import { Icon } from '@/components/atoms/icon';
+import { Text } from '@/components/atoms/text';
+import { ButtonSecondary } from '@/components/molecules/button-secondary';
 import { styles } from './continue-campaign-card.styles';
 import type { ContinueCampaignCardProps } from './continue-campaign-card.types';
 

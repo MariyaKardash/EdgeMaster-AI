@@ -10,7 +10,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { Icon, Text } from '@/components';
+import { Icon } from '@/components/atoms/icon';
+import { Text } from '@/components/atoms/text';
 import { colors } from '@/theme';
 import { animateButtonPressIn, animateButtonPressOut } from '../button/button.press-animation';
 import { CARD_BORDER_DEFAULT, CHECK_BORDER_DEFAULT, STAT_LABELS } from './character-card.constants';

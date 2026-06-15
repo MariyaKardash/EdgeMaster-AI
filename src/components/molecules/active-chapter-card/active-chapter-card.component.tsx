@@ -2,7 +2,8 @@ import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { View } from 'react-native';
 
-import { Button, Text } from '@/components';
+import { Text } from '@/components/atoms/text';
+import { Button } from '@/components/molecules/button';
 import { colors, withAlpha } from '@/theme';
 import { OPEN_CHAPTER_LABEL } from './active-chapter-card.constants';
 import { styles } from './active-chapter-card.styles';

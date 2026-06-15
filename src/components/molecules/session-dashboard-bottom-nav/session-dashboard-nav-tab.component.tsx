@@ -1,6 +1,7 @@
 import { Pressable } from 'react-native';
 
-import { Icon, Text } from '@/components';
+import { Icon } from '@/components/atoms/icon';
+import { Text } from '@/components/atoms/text';
 import { styles } from './session-dashboard-bottom-nav.styles';
 import type { SessionDashboardNavTabProps } from './session-dashboard-bottom-nav.types';
 

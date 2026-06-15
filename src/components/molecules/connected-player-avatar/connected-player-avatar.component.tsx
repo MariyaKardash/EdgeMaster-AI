@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { Pressable, View } from 'react-native';
 
-import { Text } from '@/components';
+import { Text } from '@/components/atoms/text';
 import { styles } from './connected-player-avatar.styles';
 import type { ConnectedPlayerAvatarProps } from './connected-player-avatar.types';
 

@@ -1,6 +1,7 @@
 import { Switch, View } from 'react-native';
 
-import { Icon, Text } from '@/components';
+import { Icon } from '@/components/atoms/icon';
+import { Text } from '@/components/atoms/text';
 import { colors } from '@/theme';
 import { styles } from './artifact-item-card.styles';
 import type { ArtifactItemCardProps, ArtifactRarity } from './artifact-item-card.types';

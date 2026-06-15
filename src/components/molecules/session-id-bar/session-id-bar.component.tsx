@@ -2,7 +2,8 @@ import * as Clipboard from 'expo-clipboard';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
-import { Icon, Text } from '@/components';
+import { Icon } from '@/components/atoms/icon';
+import { Text } from '@/components/atoms/text';
 import {
   COPIED_LABEL,
   COPY_ACCESSIBILITY_LABEL,

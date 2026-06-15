@@ -1,6 +1,8 @@
 import { View } from 'react-native';
 
-import { Button, Icon, Text } from '@/components';
+import { Icon } from '@/components/atoms/icon';
+import { Text } from '@/components/atoms/text';
+import { Button } from '@/components/molecules/button';
 import { styles } from './new-campaign-card.styles';
 import type { NewCampaignCardProps } from './new-campaign-card.types';
 

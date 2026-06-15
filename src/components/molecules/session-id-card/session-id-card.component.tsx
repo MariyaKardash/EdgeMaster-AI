@@ -2,7 +2,8 @@ import * as Clipboard from 'expo-clipboard';
 import { useMemo, useState } from 'react';
 import { Animated, Pressable, View } from 'react-native';
 
-import { Icon, Text } from '@/components';
+import { Icon } from '@/components/atoms/icon';
+import { Text } from '@/components/atoms/text';
 import { styles } from './session-id-card.styles';
 import type { SessionIdCardProps } from './session-id-card.types';
 
