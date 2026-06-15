@@ -8,6 +8,7 @@
     "preandroid": "npm run bundle:holepunch",
     "preios": "npm run bundle:holepunch",
     "start": "expo start --dev-client",
+    "start:diagnose": "EXPO_USE_METRO_REQUIRE=1 expo start --dev-client --clear",
     "android": "expo run:android",
     "ios": "expo run:ios",
     "prebuild": "expo prebuild",
@@ -26,8 +27,10 @@
     "@expo-google-fonts/playfair-display": "^0.4.2",
     "@expo-google-fonts/space-mono": "^0.4.2",
     "@expo/vector-icons": "^15.0.2",
+    "@gorhom/bottom-sheet": "^5.2.14",
     "@hookform/resolvers": "^5.4.0",
     "b4a": "^1.8.1",
+    "@qvac/sdk": "^0.12.2",
     "babel-preset-expo": "~56.0.0",
     "bare-pack": "^2.1.2",
     "corestore": "^7.10.1",
@@ -36,12 +39,14 @@
     "expo-clipboard": "^56.0.4",
     "expo-constants": "~56.0.18",
     "expo-dev-client": "~56.0.19",
-    "expo-file-system": "^56.0.8",
+    "expo-file-system": "~56.0.8",
+    "expo-device": "~56.0.4",
     "expo-font": "~56.0.6",
     "expo-image": "~56.0.11",
     "expo-linear-gradient": "~56.0.4",
     "expo-linking": "~56.0.14",
     "expo-router": "~56.2.10",
+    "expo-splash-screen": "~56.0.10",
     "expo-status-bar": "~56.0.4",
     "hyperbee": "^2.27.3",
     "hypercore": "^11.33.1",
@@ -53,6 +58,7 @@
     "react-native-b4a": "^0.1.0",
     "react-native-bare-kit": "^0.14.3",
     "react-native-edge-to-edge": "^1.8.1",
+    "react-native-gesture-handler": "~2.31.1",
     "react-native-nitro-modules": "^0.35.9",
     "react-native-reanimated": "4.3.1",
     "react-native-safe-area-context": "~5.7.0",
@@ -66,6 +72,7 @@
     "@react-native/jest-preset": "0.85.3",
     "@types/jest": "29.5.14",
     "@types/react": "~19.2.2",
+    "bare-pack": "^2.0.1",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~56.0.4",
     "eslint-config-prettier": "^10.1.8",
@@ -85,5 +92,9 @@
     "*.{json,md,yml,yaml}": [
       "prettier --write"
     ]
+  },
+  "overrides": {
+    "expo-device": "~56.0.4",
+    "expo-file-system": "~56.0.8"
   }
 }

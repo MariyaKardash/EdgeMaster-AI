@@ -21,7 +21,12 @@ import { formatStat } from './character-card.utils';
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 const AnimatedView = Animated.View;
 
-export const CharacterCard = ({ player, selected, onPress }: CharacterCardProps) => {
+export const CharacterCard = ({
+  player,
+  selected,
+  disabled = false,
+  onPress,
+}: CharacterCardProps) => {
   const statValues = [player.stats.str, player.stats.dex, player.stats.int];
   const selectedProgress = useSharedValue(selected ? 1 : 0);
   const pressed = useSharedValue(0);
@@ -84,11 +89,18 @@ export const CharacterCard = ({ player, selected, onPress }: CharacterCardProps)
 
         <AnimatedPressable
           accessibilityRole="button"
-          accessibilityState={{ selected }}
+          accessibilityState={{ selected, disabled }}
+          disabled={disabled}
           onPress={onPress}
-          onPressIn={() => animateButtonPressIn(pressed)}
-          onPressOut={() => animateButtonPressOut(pressed)}
-          style={[styles.card, cardAnimatedStyle]}
+          onPressIn={() => {
+            if (disabled) return;
+            animateButtonPressIn(pressed);
+          }}
+          onPressOut={() => {
+            if (disabled) return;
+            animateButtonPressOut(pressed);
+          }}
+          style={[styles.card, cardAnimatedStyle, disabled && styles.cardDisabled]}
         >
           <View style={styles.row}>
             <AnimatedView style={[styles.avatar, avatarAnimatedStyle]}>

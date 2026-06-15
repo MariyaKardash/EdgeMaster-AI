@@ -15,11 +15,12 @@ export const ButtonSecondary = ({
   icon,
   iconPosition = 'trailing',
   fullWidth = false,
+  compact = false,
   disabled = false,
 }: ButtonSecondaryProps) => {
   const pressed = useSharedValue(0);
 
-  styles.useVariants({ fullWidth, disabled });
+  styles.useVariants({ fullWidth, compact, disabled });
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: interpolate(pressed.value, [0, 1], [1, 0.9]),
