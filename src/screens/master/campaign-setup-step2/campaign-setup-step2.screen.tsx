@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import {
@@ -13,6 +13,7 @@ import {
 import type { CharacterStats } from '@/components/molecules/character-card';
 import { STAT_LABELS } from '@/components/molecules/character-card/character-card.constants';
 import { CampaignSetupHeader } from '@/components/organisms/campaign-setup-header';
+import { campaignSetupStore } from '@/stores/campaign-setup-store';
 import {
   ADD_HERO_LABEL,
   ARCHETYPE_LABEL,
@@ -63,10 +64,20 @@ const rollStats = (): CharacterStats => ({
 });
 
 export const CampaignSetupStep2Screen = ({ onContinue, onBack }: CampaignSetupStep2ScreenProps) => {
-  const [characters, setCharacters] = useState<CampaignCharacter[]>(MOCK_CHARACTERS);
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [characters, setCharacters] = useState<CampaignCharacter[]>(() =>
+    campaignSetupStore.characters.length > 0 ? campaignSetupStore.characters : MOCK_CHARACTERS,
+  );
+  const [selectedIds, setSelectedIds] = useState<string[]>(
+    () => campaignSetupStore.selectedCharacterIds,
+  );
   const [heroForm, setHeroForm] = useState<NewHeroForm>(EMPTY_HERO_FORM);
   const [heroStats, setHeroStats] = useState<HeroStats>(EMPTY_HERO_STATS);
+
+  useEffect(() => {
+    return () => {
+      campaignSetupStore.resetStep2();
+    };
+  }, []);
 
   const toggleCharacter = (id: string) => {
     setSelectedIds((current) => {
@@ -90,6 +101,10 @@ export const CampaignSetupStep2Screen = ({ onContinue, onBack }: CampaignSetupSt
       return;
     }
 
+    campaignSetupStore.setStep2({
+      characters,
+      selectedCharacterIds: selectedIds,
+    });
     onContinue?.(selectedIds);
   };
 

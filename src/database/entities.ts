@@ -54,6 +54,23 @@ export const campaignSetupStep1Schema = campaignSchema.pick({ name: true, descri
 
 export type CampaignSetupStep1Fields = z.infer<typeof campaignSetupStep1Schema>;
 
+export const campaignSetupCharacterSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().trim().min(1),
+  class: z.string().trim().min(1),
+  stats: characterStatsSchema,
+  imageUri: z.url(),
+});
+
+export type CampaignSetupCharacter = z.infer<typeof campaignSetupCharacterSchema>;
+
+export const campaignSetupStep2Schema = z.object({
+  characters: z.array(campaignSetupCharacterSchema),
+  selectedCharacterIds: z.array(z.string()).min(3).max(5),
+});
+
+export type CampaignSetupStep2Fields = z.infer<typeof campaignSetupStep2Schema>;
+
 // --- Character Template ---
 
 export const characterTemplateSchema = baseEntitySchema.extend({
