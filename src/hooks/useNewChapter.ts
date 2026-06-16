@@ -5,10 +5,11 @@ import { useCallback, useState } from 'react';
 import { completion } from '@qvac/sdk';
 
 import type { DictationState } from '@/components/organisms/description-editor';
+import { useCampaign } from '@/contexts/campaign-context';
 import type { ChapterInputTab, DocState } from '@/screens/master/new-chapter/new-chapter.types';
 import {
+  buildGenerateSystemPrompt,
   FIX_SYSTEM_PROMPT,
-  GENERATE_SYSTEM_PROMPT,
   MAX_FILE_BYTES,
   SUPPORTED_MIME_TYPES,
 } from '@/screens/master/new-chapter/new-chapter.constants';
@@ -59,6 +60,7 @@ export type UseNewChapterResult = {
 
 export function useNewChapter({ campaignId }: UseNewChapterParams): UseNewChapterResult {
   const llm = useLLMModel();
+  const { listChapters } = useCampaign();
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -139,7 +141,13 @@ export function useNewChapter({ campaignId }: UseNewChapterParams): UseNewChapte
     setIsGenerating(true);
     setErrorMessage(null);
     try {
-      const generated = await runCompletion(GENERATE_SYSTEM_PROMPT, promptText);
+      const allChapters = await listChapters(campaignId).catch(() => []);
+      const priorChapters = allChapters.slice(-2).map((c) => ({
+        title: c.title,
+        description: c.description,
+      }));
+      const systemPrompt = buildGenerateSystemPrompt(priorChapters);
+      const generated = await runCompletion(systemPrompt, promptText);
       if (generated) setDescription(generated);
     } catch (e: unknown) {
       console.error('[useNewChapter] handleGenerate failed:', e);
@@ -147,7 +155,7 @@ export function useNewChapter({ campaignId }: UseNewChapterParams): UseNewChapte
     } finally {
       setIsGenerating(false);
     }
-  }, [promptText, llm.modelId, isGenerating, runCompletion]);
+  }, [promptText, llm.modelId, isGenerating, listChapters, campaignId, runCompletion]);
 
   const handleDocPick = useCallback(async () => {
     setErrorMessage(null);
