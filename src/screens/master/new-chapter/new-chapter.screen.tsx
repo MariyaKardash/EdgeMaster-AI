@@ -177,6 +177,7 @@ export const NewChapterScreen = ({ campaignId, onBack, onSave }: NewChapterScree
         <DescriptionEditor
           value={description}
           onChangeText={setDescription}
+          editable={activeTab === 'manual'}
           placeholder={
             activeTab === 'prompt'
               ? DESCRIPTION_PLACEHOLDER_PROMPT

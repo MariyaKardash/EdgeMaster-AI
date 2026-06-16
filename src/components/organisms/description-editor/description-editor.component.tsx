@@ -23,6 +23,7 @@ export const DescriptionEditor = ({
   isFixing,
   onFix,
   isModelReady,
+  editable = true,
 }: DescriptionEditorProps) => {
   const { theme } = useUnistyles();
 
@@ -33,13 +34,15 @@ export const DescriptionEditor = ({
   return (
     <View style={styles.container}>
       <TextInput
-        style={styles.textArea}
+        style={[styles.textArea, !editable && styles.textAreaReadOnly]}
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={theme.colors.onSurfaceVariant}
         multiline
         textAlignVertical="top"
+        editable={editable}
+        scrollEnabled={false}
         cursorColor={theme.colors.primaryContainer}
         selectionColor={theme.colors.primaryContainer}
       />

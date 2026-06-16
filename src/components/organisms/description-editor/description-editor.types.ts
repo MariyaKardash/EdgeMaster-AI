@@ -12,4 +12,6 @@ export type DescriptionEditorProps = {
   onFix: () => void;
   /** Disables Fix button when the LLM model is not loaded yet */
   isModelReady: boolean;
+  /** When false the text area is read-only — no keyboard, no cursor. Default: true */
+  editable?: boolean;
 };

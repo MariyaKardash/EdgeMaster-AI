@@ -22,6 +22,11 @@ export const styles = StyleSheet.create((theme) => ({
     textAlignVertical: 'top',
   },
 
+  textAreaReadOnly: {
+    opacity: 0.7,
+    color: theme.colors.onSurfaceVariant,
+  },
+
   dictationBar: {
     flexDirection: 'row',
     alignItems: 'center',
