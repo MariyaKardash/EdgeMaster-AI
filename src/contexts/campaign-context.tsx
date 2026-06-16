@@ -43,6 +43,7 @@ type CampaignContextValue = {
   setConnectionState: (connectionState: ConnectionState) => void;
   setCampaigns: (campaigns: Campaign[]) => void;
   openCampaign: (campaignId: string) => Promise<{ campaign: Campaign; chapter: Chapter | null }>;
+  listChapters: (campaignId: string) => Promise<Chapter[]>;
   startMasterSession: (campaignId: string, chapterId: string) => Promise<Session>;
   joinPlayerSession: (sessionCode: string, displayName?: string) => Promise<Session>;
   stopSession: () => Promise<void>;
@@ -219,6 +220,11 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
     [repository, setActiveCampaignState],
   );
 
+  const listChapters = useCallback(
+    (campaignId: string) => repository.listChapters(campaignId),
+    [repository],
+  );
+
   const startMasterSession = useCallback(
     async (campaignId: string, chapterId: string) => {
       setError(null);
@@ -307,6 +313,7 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       setConnectionState,
       setCampaigns,
       openCampaign,
+      listChapters,
       startMasterSession,
       joinPlayerSession,
       stopSession,
@@ -331,6 +338,7 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       setConnectionState,
       setCampaigns,
       openCampaign,
+      listChapters,
       startMasterSession,
       joinPlayerSession,
       stopSession,

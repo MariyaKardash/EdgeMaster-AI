@@ -35,7 +35,13 @@
       ],
       "expo-router",
       "@qvac/sdk/expo-plugin",
-      "expo-splash-screen"
+      "expo-splash-screen",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Allow EdgeMaster AI to access your microphone for voice dictation."
+        }
+      ]
     ],
     "ios": {
       "supportsTablet": true,

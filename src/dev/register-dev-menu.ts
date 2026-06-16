@@ -12,5 +12,12 @@ export function registerAppDevMenuItems() {
         router.push('/dev/chat');
       },
     },
+    {
+      name: 'New Chapter (Dev)',
+      shouldCollapse: true,
+      callback: () => {
+        router.push('/dev/new-chapter');
+      },
+    },
   ]);
 }
