@@ -71,6 +71,12 @@ export const campaignSetupStep2Schema = z.object({
 
 export type CampaignSetupStep2Fields = z.infer<typeof campaignSetupStep2Schema>;
 
+export const campaignSetupStep3Schema = z.object({
+  availableItemIds: z.array(z.string()).min(1),
+});
+
+export type CampaignSetupStep3Fields = z.infer<typeof campaignSetupStep3Schema>;
+
 // --- Character Template ---
 
 export const characterTemplateSchema = baseEntitySchema.extend({

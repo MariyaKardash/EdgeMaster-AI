@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import { ArtifactItemCard, Button, Icon, Text, TextField } from '@/components';
 import { CampaignSetupHeader } from '@/components/organisms/campaign-setup-header';
+import { campaignSetupStore } from '@/stores/campaign-setup-store';
 import { colors, withAlpha } from '@/theme';
 import {
   DEFAULT_AVAILABLE_ITEM_IDS,
@@ -26,7 +27,17 @@ import { styles } from './campaign-setup-step3.styles';
 import type { CampaignSetupStep3ScreenProps } from './campaign-setup-step3.types';
 
 export const CampaignSetupStep3Screen = ({ onFinalize, onBack }: CampaignSetupStep3ScreenProps) => {
-  const [availableIds, setAvailableIds] = useState<string[]>(DEFAULT_AVAILABLE_ITEM_IDS);
+  const [availableIds, setAvailableIds] = useState<string[]>(() =>
+    campaignSetupStore.availableItemIds.length > 0
+      ? campaignSetupStore.availableItemIds
+      : DEFAULT_AVAILABLE_ITEM_IDS,
+  );
+
+  useEffect(() => {
+    return () => {
+      campaignSetupStore.resetStep3();
+    };
+  }, []);
 
   const toggleAvailability = (id: string, available: boolean) => {
     setAvailableIds((current) => {
@@ -40,6 +51,8 @@ export const CampaignSetupStep3Screen = ({ onFinalize, onBack }: CampaignSetupSt
 
   const handleFinalize = () => {
     if (availableIds.length < MIN_AVAILABLE_ITEMS) return;
+
+    campaignSetupStore.setStep3({ availableItemIds: availableIds });
     onFinalize?.(availableIds);
   };
 
