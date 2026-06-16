@@ -1,9 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Controller, useForm, useWatch } from 'react-hook-form';
-import { ScrollView, TextInput, View } from 'react-native';
+import { useEffect } from 'react';
+import { Controller, useForm } from 'react-hook-form';
+import { ScrollView, View } from 'react-native';
 
 import { Button, Icon, Text, TextField } from '@/components';
 import { CampaignSetupHeader } from '@/components/organisms/campaign-setup-header';
+import { campaignSetupStep1Schema } from '@/database/entities';
+import { campaignSetupStore } from '@/stores/campaign-setup-store';
 import { colors, withAlpha } from '@/theme';
 import {
   CAMPAIGN_NAME_LABEL,
@@ -15,25 +18,34 @@ import {
   SUBTITLE,
   TITLE,
 } from './campaign-setup-step1.constants';
-import { campaignSetupStep1Schema } from './campaign-setup-step1.schema';
 import { styles } from './campaign-setup-step1.styles';
 import type {
   CampaignSetupStep1FormValues,
   CampaignSetupStep1ScreenProps,
 } from './campaign-setup-step1.types';
 
-export const CampaignSetupStep1Screen = ({ onContinue, onBack }: CampaignSetupStep1ScreenProps) => {
-  const { control, handleSubmit } = useForm<CampaignSetupStep1FormValues>({
+export function CampaignSetupStep1Screen({ onContinue, onBack }: CampaignSetupStep1ScreenProps) {
+  const {
+    control,
+    handleSubmit,
+    formState: { isValid },
+  } = useForm<CampaignSetupStep1FormValues>({
     resolver: zodResolver(campaignSetupStep1Schema),
-    defaultValues: { campaignName: '', description: '' },
-    mode: 'onChange',
+    defaultValues: {
+      name: '',
+      description: '',
+    },
+    mode: 'onSubmit',
   });
 
-  const campaignName = useWatch({ control, name: 'campaignName' }) ?? '';
-  const isContinueDisabled = campaignName.trim().length === 0;
+  useEffect(() => {
+    return () => {
+      campaignSetupStore.resetStep1();
+    };
+  }, []);
 
   const onSubmit = (values: CampaignSetupStep1FormValues) => {
-    if (!values.campaignName.trim()) return;
+    campaignSetupStore.setStep1(values);
     onContinue?.(values);
   };
 
@@ -63,11 +75,12 @@ export const CampaignSetupStep1Screen = ({ onContinue, onBack }: CampaignSetupSt
             <View style={styles.nameInputWrapper}>
               <Controller
                 control={control}
-                name="campaignName"
-                render={({ field: { onChange, onBlur, value } }) => (
+                name="name"
+                render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
                   <TextField
                     value={value}
                     onChangeText={onChange}
+                    error={error?.message}
                     onBlur={onBlur}
                     placeholder={CAMPAIGN_NAME_PLACEHOLDER}
                     autoCorrect={false}
@@ -86,9 +99,10 @@ export const CampaignSetupStep1Screen = ({ onContinue, onBack }: CampaignSetupSt
             <Controller
               control={control}
               name="description"
-              render={({ field: { onChange, onBlur, value } }) => (
-                <TextInput
+              render={({ field: { onChange, onBlur, value }, fieldState: { error } }) => (
+                <TextField
                   value={value}
+                  error={error?.message}
                   onChangeText={onChange}
                   onBlur={onBlur}
                   placeholder={DESCRIPTION_PLACEHOLDER}
@@ -96,7 +110,7 @@ export const CampaignSetupStep1Screen = ({ onContinue, onBack }: CampaignSetupSt
                   multiline
                   scrollEnabled
                   textAlignVertical="top"
-                  style={styles.descriptionInput}
+                  inputStyle={styles.descriptionInput}
                   cursorColor={colors.primaryContainer}
                   selectionColor={colors.primaryContainer}
                 />
@@ -132,10 +146,10 @@ export const CampaignSetupStep1Screen = ({ onContinue, onBack }: CampaignSetupSt
           title="Continue"
           icon="arrow-forward"
           fullWidth
-          disabled={isContinueDisabled}
+          disabled={!isValid}
           onPress={handleSubmit(onSubmit)}
         />
       </View>
     </View>
   );
-};
+}

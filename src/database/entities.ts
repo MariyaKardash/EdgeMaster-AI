@@ -43,11 +43,16 @@ export type ItemStats = z.infer<typeof itemStatsSchema>;
 // --- Campaign ---
 
 export const campaignSchema = baseEntitySchema.extend({
-  name: z.string().min(1),
+  name: z.string().trim().min(1),
+  description: z.string().trim().min(1),
   activeChapterId: z.uuid().nullable(),
 });
 
 export type Campaign = z.infer<typeof campaignSchema>;
+
+export const campaignSetupStep1Schema = campaignSchema.pick({ name: true, description: true });
+
+export type CampaignSetupStep1Fields = z.infer<typeof campaignSetupStep1Schema>;
 
 // --- Character Template ---
 

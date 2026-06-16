@@ -104,10 +104,14 @@ export class CampaignRepository {
     return summaries;
   }
 
-  async createCampaign(name: string): Promise<{ campaign: Campaign; coreKey: string }> {
-    this.log('createCampaign', { name });
+  async createCampaign(
+    name: string,
+    description = '',
+  ): Promise<{ campaign: Campaign; coreKey: string }> {
+    this.log('createCampaign', { name, description });
     const campaign = createEntity<Campaign>({
       name: name.trim(),
+      description,
       activeChapterId: null,
     });
 
