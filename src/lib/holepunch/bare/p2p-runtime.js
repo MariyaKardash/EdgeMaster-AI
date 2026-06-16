@@ -202,7 +202,7 @@ async function openCampaign(message, options = {}) {
   if (swarm) {
     attachReplicationToPeers();
     if (campaignDiscovery) {
-      await campaignDiscovery.close();
+      await campaignDiscovery.destroy();
     }
     campaignDiscovery = swarm.join(campaignCore.discoveryKey, {
       server: currentRole === 'host',
@@ -223,7 +223,7 @@ async function openCampaign(message, options = {}) {
 
 async function closeCampaign(message = {}) {
   if (campaignDiscovery) {
-    await campaignDiscovery.close();
+    await campaignDiscovery.destroy();
     campaignDiscovery = null;
   }
 
@@ -722,7 +722,7 @@ async function stopSwarm() {
   }
 
   if (campaignDiscovery) {
-    await campaignDiscovery.close();
+    await campaignDiscovery.destroy();
     campaignDiscovery = null;
   }
 
@@ -751,4 +751,19 @@ function send(message) {
 
 function log(label, data) {
   console.log(`[holepunch:worklet] ${label}`, data);
+}
+
+const bootStoragePath = normalizeStoragePath(
+  typeof Bare !== 'undefined' && Array.isArray(Bare.argv) ? Bare.argv[0] : '',
+);
+
+send({ type: 'runtime-ready', storagePath: bootStoragePath || null });
+
+if (bootStoragePath) {
+  handleCommand({ type: 'init', storagePath: bootStoragePath }).catch((error) => {
+    send({
+      type: 'error',
+      message: error && error.message ? error.message : String(error),
+    });
+  });
 }

@@ -25,6 +25,7 @@ type ConnectionState = 'idle' | 'connecting' | 'connected' | 'error';
 
 type CampaignContextValue = {
   ready: boolean;
+  campaignsLoading: boolean;
   error: string | null;
   connectionState: ConnectionState;
   connectedPeers: number;
@@ -50,7 +51,8 @@ type CampaignContextValue = {
 const CampaignContext = createContext<CampaignContextValue | null>(null);
 
 function createCampaignRuntime() {
-  const worklet = createP2pWorkletClient();
+  const storagePath = getP2pStoragePath();
+  const worklet = createP2pWorkletClient(storagePath);
 
   return {
     worklet,
@@ -62,6 +64,7 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
   const [runtime] = useState(createCampaignRuntime);
   const { worklet, repository } = runtime;
   const [ready, setReady] = useState(false);
+  const [campaignsLoading, setCampaignsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connectionState, setConnectionState] = useState<ConnectionState>('idle');
   const [connectedPeers, setConnectedPeers] = useState(0);
@@ -85,8 +88,14 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
     }
 
     const refresh = (async () => {
-      const summaries = await repository.listLocalCampaigns(activeCampaignIdRef.current);
-      setCampaigns(summaries.map((summary) => summary.campaign));
+      setCampaignsLoading(true);
+
+      try {
+        const summaries = await repository.listLocalCampaigns(activeCampaignIdRef.current);
+        setCampaigns(summaries.map((summary) => summary.campaign));
+      } finally {
+        setCampaignsLoading(false);
+      }
     })();
 
     refreshInFlightRef.current = refresh;
@@ -124,6 +133,8 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
     let cancelled = false;
 
     const bootstrap = async () => {
+      setError(null);
+
       try {
         await worklet.init(getP2pStoragePath());
 
@@ -132,7 +143,6 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
         }
 
         setReady(true);
-        await refreshCampaignsRef.current();
       } catch (bootstrapError) {
         if (!cancelled) {
           setReady(false);
@@ -140,6 +150,17 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
             bootstrapError instanceof Error
               ? bootstrapError.message
               : 'Failed to initialize P2P storage.',
+          );
+        }
+        return;
+      }
+
+      try {
+        await refreshCampaignsRef.current();
+      } catch (refreshError) {
+        if (!cancelled) {
+          setError(
+            refreshError instanceof Error ? refreshError.message : 'Failed to load campaigns.',
           );
         }
       }
@@ -268,6 +289,7 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
   const value = useMemo(
     () => ({
       ready,
+      campaignsLoading,
       error,
       connectionState,
       connectedPeers,
@@ -291,6 +313,7 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
     }),
     [
       ready,
+      campaignsLoading,
       error,
       connectionState,
       connectedPeers,

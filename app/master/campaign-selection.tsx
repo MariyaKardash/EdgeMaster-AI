@@ -34,6 +34,8 @@ const CampaignSelectionRoute = () => {
   const router = useRouter();
   const {
     ready,
+    campaignsLoading,
+    error,
     campaigns,
     activeSession,
     worklet,
@@ -356,6 +358,8 @@ const CampaignSelectionRoute = () => {
     <CampaignSelectionScreen
       campaigns={campaignCards}
       isLoading={!ready || isSubmitting}
+      campaignsLoading={campaignsLoading}
+      error={error}
       onBack={() => router.back()}
       onStartNew={() => void handleStartNew()}
       onContinue={(item) => void handleContinue(item)}

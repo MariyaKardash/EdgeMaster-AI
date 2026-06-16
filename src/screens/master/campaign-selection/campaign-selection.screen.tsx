@@ -7,6 +7,8 @@ import type { CampaignSelectionScreenProps } from './campaign-selection.types';
 export const CampaignSelectionScreen = ({
   campaigns,
   isLoading,
+  campaignsLoading = false,
+  error,
   onBack,
   onStartNew,
   onContinue,
@@ -25,9 +27,19 @@ export const CampaignSelectionScreen = ({
 
         <View style={styles.cards}>
           <NewCampaignCard onPress={() => onStartNew?.()} disabled={isLoading} />
-          {isLoading ? (
+          {error ? (
+            <Text variant="bodyMd" style={styles.errorText}>
+              {error}
+            </Text>
+          ) : null}
+          {!isLoading && campaignsLoading ? (
             <Text variant="bodyMd" style={styles.subtitle}>
               Loading campaigns...
+            </Text>
+          ) : null}
+          {isLoading && !error ? (
+            <Text variant="bodyMd" style={styles.subtitle}>
+              Initializing storage...
             </Text>
           ) : null}
           {campaigns?.map((campaign) => (

@@ -18,6 +18,9 @@ type PendingRequest = {
   reject: (error: Error) => void;
 };
 
+const STORAGE_READY_MESSAGE = 'Storage ready.';
+const INIT_TIMEOUT_MS = 30_000;
+
 function createRequestId() {
   return randomUUID();
 }
@@ -27,17 +30,15 @@ function send(ipc: BareIpc, payload: P2pWorkletCommand | Record<string, unknown>
   ipc.write(b4a.from(JSON.stringify(payload) + '\n'));
 }
 
-export function createP2pWorkletClient(): P2pWorkletClient {
+export function createP2pWorkletClient(storagePath: string): P2pWorkletClient {
   const worklet = new Worklet();
   const ipc = worklet.IPC as unknown as BareIpc;
   let buffer = '';
   let initialized = false;
   let initPromise: Promise<void> | null = null;
-  let storagePathValue: string | null = null;
+  let storagePathValue = storagePath;
   let listeners = new Set<(event: P2pWorkletEvent) => void>();
   const pending = new Map<string, PendingRequest>();
-
-  worklet.start('/p2p.bundle', runtimeBundle);
 
   const emit = (event: P2pWorkletEvent) => {
     logHolepunchEvent('ipc-in', event);
@@ -136,31 +137,22 @@ export function createP2pWorkletClient(): P2pWorkletClient {
     };
   };
 
-  const ensureInit = async (storagePath: string) => {
-    if (initialized) {
-      return;
-    }
-
-    if (initPromise) {
-      await initPromise;
-      return;
-    }
-
-    initPromise = new Promise<void>((resolve, reject) => {
+  const waitForStorageReady = (options: { sendInit?: boolean; storagePath?: string } = {}) =>
+    new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => {
-        initPromise = null;
+        unsubscribe();
         reject(new Error('P2P worklet init timed out.'));
-      }, 30_000);
+      }, INIT_TIMEOUT_MS);
 
       const unsubscribe = onEvent((event) => {
-        if (event.type === 'error') {
+        if (event.type === 'error' && !event.requestId) {
           clearTimeout(timeout);
           unsubscribe();
-          initPromise = null;
           reject(new Error(event.message));
+          return;
         }
 
-        if (event.type === 'status' && event.message === 'Storage ready.') {
+        if (event.type === 'status' && event.message === STORAGE_READY_MESSAGE) {
           clearTimeout(timeout);
           unsubscribe();
           initialized = true;
@@ -168,8 +160,36 @@ export function createP2pWorkletClient(): P2pWorkletClient {
         }
       });
 
-      send(ipc, { type: 'init', storagePath });
+      if (options.sendInit) {
+        const nextStoragePath = options.storagePath ?? storagePathValue;
+
+        if (!nextStoragePath) {
+          clearTimeout(timeout);
+          unsubscribe();
+          reject(new Error('P2P storage path is required.'));
+          return;
+        }
+
+        send(ipc, { type: 'init', storagePath: nextStoragePath });
+      }
     });
+
+  initPromise = waitForStorageReady();
+
+  worklet.start('/p2p.bundle', runtimeBundle, [storagePath]);
+
+  const ensureInit = async (storagePath: string, options: { forceSend?: boolean } = {}) => {
+    if (initialized) {
+      return;
+    }
+
+    if (initPromise && !options.forceSend) {
+      await initPromise;
+      return;
+    }
+
+    storagePathValue = storagePath;
+    initPromise = waitForStorageReady({ sendInit: true, storagePath });
 
     try {
       await initPromise;
@@ -198,9 +218,26 @@ export function createP2pWorkletClient(): P2pWorkletClient {
   };
 
   const client: P2pWorkletClient = {
-    async init(storagePath) {
-      storagePathValue = storagePath;
-      await ensureInit(storagePath);
+    async init(nextStoragePath) {
+      if (initialized && storagePathValue === nextStoragePath) {
+        return;
+      }
+
+      storagePathValue = nextStoragePath;
+
+      if (initialized) {
+        initialized = false;
+        initPromise = null;
+        await ensureInit(nextStoragePath, { forceSend: true });
+        return;
+      }
+
+      if (initPromise) {
+        await initPromise;
+        return;
+      }
+
+      await ensureInit(nextStoragePath);
     },
     async openCampaign(campaignId, coreKey) {
       await ensureReady();
@@ -313,7 +350,6 @@ export function createP2pWorkletClient(): P2pWorkletClient {
         pending.clear();
         initialized = false;
         initPromise = null;
-        storagePathValue = null;
       }
     },
     onEvent,

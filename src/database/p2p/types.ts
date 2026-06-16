@@ -28,6 +28,7 @@ export type P2pDbEntity =
 export type P2pDbValue = P2pDbEntity | string[] | string;
 
 export type P2pWorkletEvent =
+  | { type: 'runtime-ready'; storagePath: string | null }
   | { type: 'status'; message: string }
   | { type: 'error'; message: string; requestId?: string }
   | { type: 'stopped' }
