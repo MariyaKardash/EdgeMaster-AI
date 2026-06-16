@@ -19,6 +19,7 @@ export const navigateSessionDashboardTab = (
       router.replace({ pathname: '/master/chapters-list', params });
       break;
     case 'players':
+      router.replace({ pathname: '/master/party-status', params });
       break;
   }
 };

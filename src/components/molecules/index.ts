@@ -10,6 +10,7 @@ export { ContinueCampaignCard } from './continue-campaign-card';
 export { ConnectedPlayerAvatar } from './connected-player-avatar';
 export { FloatingActionButton } from './floating-action-button';
 export { NewCampaignCard } from './new-campaign-card';
+export { PartyPlayerCard } from './party-player-card';
 export { CharacterCard } from './character-card';
 export { P2PNode } from './p2p-node';
 export { PulsingSuccessIcon } from './pulsing-success-icon';
