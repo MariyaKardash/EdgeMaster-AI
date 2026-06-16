@@ -5,6 +5,7 @@ export { Button } from './button';
 export { ButtonSecondary } from './button-secondary';
 export { CampaignSummaryCard } from './campaign-summary-card';
 export { ChapterListItemCard } from './chapter-list-item-card';
+export { CombatLogEntry } from './combat-log-entry';
 export { ContinueCampaignCard } from './continue-campaign-card';
 export { ConnectedPlayerAvatar } from './connected-player-avatar';
 export { FloatingActionButton } from './floating-action-button';
