@@ -156,6 +156,24 @@ async function openCampaign(message, options = {}) {
     throw new Error('Campaign id is required.');
   }
 
+  if (activeCampaignId === campaignId && campaignBee && campaignCore && !coreKeyHex) {
+    if (swarm) {
+      attachReplicationToPeers();
+    }
+
+    if (!silent) {
+      send({
+        type: 'campaign-opened',
+        campaignId,
+        coreKey: b4a.toString(campaignCore.key, 'hex'),
+        discoveryKey: b4a.toString(campaignCore.discoveryKey, 'hex'),
+        writable: campaignCore.writable,
+      });
+    }
+
+    return;
+  }
+
   if (activeCampaignId !== campaignId) {
     await closeCampaign({ silent: true });
   }
@@ -184,7 +202,7 @@ async function openCampaign(message, options = {}) {
   if (swarm) {
     attachReplicationToPeers();
     if (campaignDiscovery) {
-      await campaignDiscovery.close();
+      await campaignDiscovery.destroy();
     }
     campaignDiscovery = swarm.join(campaignCore.discoveryKey, {
       server: currentRole === 'host',
@@ -205,7 +223,7 @@ async function openCampaign(message, options = {}) {
 
 async function closeCampaign(message = {}) {
   if (campaignDiscovery) {
-    await campaignDiscovery.close();
+    await campaignDiscovery.destroy();
     campaignDiscovery = null;
   }
 
@@ -704,7 +722,7 @@ async function stopSwarm() {
   }
 
   if (campaignDiscovery) {
-    await campaignDiscovery.close();
+    await campaignDiscovery.destroy();
     campaignDiscovery = null;
   }
 
@@ -733,4 +751,19 @@ function send(message) {
 
 function log(label, data) {
   console.log(`[holepunch:worklet] ${label}`, data);
+}
+
+const bootStoragePath = normalizeStoragePath(
+  typeof Bare !== 'undefined' && Array.isArray(Bare.argv) ? Bare.argv[0] : '',
+);
+
+send({ type: 'runtime-ready', storagePath: bootStoragePath || null });
+
+if (bootStoragePath) {
+  handleCommand({ type: 'init', storagePath: bootStoragePath }).catch((error) => {
+    send({
+      type: 'error',
+      message: error && error.message ? error.message : String(error),
+    });
+  });
 }

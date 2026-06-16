@@ -25,6 +25,10 @@ export const styles = StyleSheet.create((theme) => ({
     textAlign: 'center',
     maxWidth: 320,
   },
+  errorText: {
+    color: theme.colors.error,
+    textAlign: 'center',
+  },
   cards: {
     gap: theme.spacing.lg,
   },

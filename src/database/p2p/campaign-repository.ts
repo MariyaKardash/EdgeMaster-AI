@@ -85,10 +85,14 @@ export class CampaignRepository {
 
       if (preserveOpenCampaignId !== campaignId) {
         await this.worklet.closeCampaign();
+
+        if (preserveOpenCampaignId) {
+          await this.worklet.openCampaign(preserveOpenCampaignId);
+        }
       }
     }
 
-    if (preserveOpenCampaignId && !campaignIds.includes(preserveOpenCampaignId)) {
+    if (preserveOpenCampaignId) {
       await this.worklet.openCampaign(preserveOpenCampaignId);
     }
 

@@ -16,7 +16,7 @@ import {
   type Chapter,
   type Session,
 } from '@/database';
-import type { P2pWorkletEvent } from '@/database/p2p/types';
+import type { P2pWorkletClient, P2pWorkletEvent } from '@/database/p2p/types';
 import { getP2pStoragePath } from '@/database/p2p/storage-path';
 import { defaultAlias } from '@/lib/holepunch/defaultAlias';
 import { sessionTopicHex } from '@/lib/holepunch/sessionTopicHex';
@@ -25,6 +25,7 @@ type ConnectionState = 'idle' | 'connecting' | 'connected' | 'error';
 
 type CampaignContextValue = {
   ready: boolean;
+  campaignsLoading: boolean;
   error: string | null;
   connectionState: ConnectionState;
   connectedPeers: number;
@@ -32,8 +33,15 @@ type CampaignContextValue = {
   activeCampaign: Campaign | null;
   activeChapter: Chapter | null;
   activeSession: Session | null;
+  worklet: P2pWorkletClient;
   refreshCampaigns: () => Promise<void>;
-  createCampaign: (name: string) => Promise<Campaign>;
+  runWithoutCampaignRefresh: <T>(fn: () => Promise<T>) => Promise<T>;
+  setError: (error: string | null) => void;
+  setActiveCampaign: (campaign: Campaign | null) => void;
+  setActiveChapter: (chapter: Chapter | null) => void;
+  setActiveSession: (session: Session | null) => void;
+  setConnectionState: (connectionState: ConnectionState) => void;
+  setCampaigns: (campaigns: Campaign[]) => void;
   openCampaign: (campaignId: string) => Promise<{ campaign: Campaign; chapter: Chapter | null }>;
   listChapters: (campaignId: string) => Promise<Chapter[]>;
   startMasterSession: (campaignId: string, chapterId: string) => Promise<Session>;
@@ -44,7 +52,8 @@ type CampaignContextValue = {
 const CampaignContext = createContext<CampaignContextValue | null>(null);
 
 function createCampaignRuntime() {
-  const worklet = createP2pWorkletClient();
+  const storagePath = getP2pStoragePath();
+  const worklet = createP2pWorkletClient(storagePath);
 
   return {
     worklet,
@@ -56,6 +65,7 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
   const [runtime] = useState(createCampaignRuntime);
   const { worklet, repository } = runtime;
   const [ready, setReady] = useState(false);
+  const [campaignsLoading, setCampaignsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connectionState, setConnectionState] = useState<ConnectionState>('idle');
   const [connectedPeers, setConnectedPeers] = useState(0);
@@ -64,24 +74,68 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
   const [activeChapter, setActiveChapter] = useState<Chapter | null>(null);
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const activeCampaignIdRef = useRef<string | null>(null);
+  const refreshInFlightRef = useRef<Promise<void> | null>(null);
+  const suspendRefreshRef = useRef(false);
 
-  useEffect(() => {
-    activeCampaignIdRef.current = activeCampaign?.id ?? null;
-  }, [activeCampaign?.id]);
+  const setActiveCampaignState = useCallback((campaign: Campaign | null) => {
+    activeCampaignIdRef.current = campaign?.id ?? null;
+    setActiveCampaign(campaign);
+  }, []);
 
   const refreshCampaignsInternal = useCallback(async () => {
-    const summaries = await repository.listLocalCampaigns(activeCampaignIdRef.current);
-    setCampaigns(summaries.map((summary) => summary.campaign));
+    if (refreshInFlightRef.current) {
+      await refreshInFlightRef.current;
+      return;
+    }
+
+    const refresh = (async () => {
+      setCampaignsLoading(true);
+
+      try {
+        const summaries = await repository.listLocalCampaigns(activeCampaignIdRef.current);
+        setCampaigns(summaries.map((summary) => summary.campaign));
+      } finally {
+        setCampaignsLoading(false);
+      }
+    })();
+
+    refreshInFlightRef.current = refresh;
+
+    try {
+      await refresh;
+    } finally {
+      if (refreshInFlightRef.current === refresh) {
+        refreshInFlightRef.current = null;
+      }
+    }
   }, [repository]);
 
   const refreshCampaigns = useCallback(async () => {
     await refreshCampaignsInternal();
   }, [refreshCampaignsInternal]);
 
+  const runWithoutCampaignRefresh = useCallback(async <T,>(fn: () => Promise<T>) => {
+    suspendRefreshRef.current = true;
+
+    try {
+      return await fn();
+    } finally {
+      suspendRefreshRef.current = false;
+    }
+  }, []);
+
+  const refreshCampaignsRef = useRef(refreshCampaignsInternal);
+
+  useEffect(() => {
+    refreshCampaignsRef.current = refreshCampaignsInternal;
+  }, [refreshCampaignsInternal]);
+
   useEffect(() => {
     let cancelled = false;
 
     const bootstrap = async () => {
+      setError(null);
+
       try {
         await worklet.init(getP2pStoragePath());
 
@@ -90,13 +144,24 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
         }
 
         setReady(true);
-        await refreshCampaignsInternal();
       } catch (bootstrapError) {
         if (!cancelled) {
+          setReady(false);
           setError(
             bootstrapError instanceof Error
               ? bootstrapError.message
               : 'Failed to initialize P2P storage.',
+          );
+        }
+        return;
+      }
+
+      try {
+        await refreshCampaignsRef.current();
+      } catch (refreshError) {
+        if (!cancelled) {
+          setError(
+            refreshError instanceof Error ? refreshError.message : 'Failed to load campaigns.',
           );
         }
       }
@@ -121,8 +186,8 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
         setConnectionState('error');
       }
 
-      if (event.type === 'db-put' || event.type === 'db-del') {
-        void refreshCampaignsInternal();
+      if ((event.type === 'db-put' || event.type === 'db-del') && !suspendRefreshRef.current) {
+        void refreshCampaignsRef.current();
       }
     });
 
@@ -130,33 +195,11 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       cancelled = true;
+      setReady(false);
       unsubscribe();
       worklet.dispose();
     };
-  }, [refreshCampaignsInternal, worklet]);
-
-  const createCampaign = useCallback(
-    async (name: string) => {
-      setError(null);
-
-      const { campaign } = await repository.createCampaign(name);
-      const chapter = await repository.createChapter({
-        campaignId: campaign.id,
-        title: 'Chapter 1',
-        description: 'The journey begins.',
-        order: 0,
-        generationSource: { type: 'manual' },
-      });
-      const activated = await repository.activateChapter(campaign.id, chapter.id);
-
-      setActiveCampaign(activated.campaign);
-      setActiveChapter(chapter);
-      await refreshCampaignsInternal();
-
-      return activated.campaign;
-    },
-    [refreshCampaignsInternal, repository],
-  );
+  }, [worklet]);
 
   const openCampaign = useCallback(
     async (campaignId: string) => {
@@ -169,12 +212,12 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const chapter = await repository.getActiveChapter(campaignId);
-      setActiveCampaign(campaign);
+      setActiveCampaignState(campaign);
       setActiveChapter(chapter);
 
       return { campaign, chapter };
     },
-    [repository],
+    [repository, setActiveCampaignState],
   );
 
   const listChapters = useCallback(
@@ -230,12 +273,12 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       const chapter = await repository.getActiveChapter(session.campaignId);
 
       setActiveSession(session);
-      setActiveCampaign(campaign);
+      setActiveCampaignState(campaign);
       setActiveChapter(chapter);
 
       return session;
     },
-    [repository, worklet],
+    [repository, worklet, setActiveCampaignState],
   );
 
   const stopSession = useCallback(async () => {
@@ -252,6 +295,7 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
   const value = useMemo(
     () => ({
       ready,
+      campaignsLoading,
       error,
       connectionState,
       connectedPeers,
@@ -259,8 +303,15 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       activeCampaign,
       activeChapter,
       activeSession,
+      worklet,
       refreshCampaigns,
-      createCampaign,
+      runWithoutCampaignRefresh,
+      setError,
+      setActiveCampaign: setActiveCampaignState,
+      setActiveChapter,
+      setActiveSession,
+      setConnectionState,
+      setCampaigns,
       openCampaign,
       listChapters,
       startMasterSession,
@@ -269,6 +320,7 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
     }),
     [
       ready,
+      campaignsLoading,
       error,
       connectionState,
       connectedPeers,
@@ -276,8 +328,15 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       activeCampaign,
       activeChapter,
       activeSession,
+      worklet,
       refreshCampaigns,
-      createCampaign,
+      runWithoutCampaignRefresh,
+      setError,
+      setActiveCampaignState,
+      setActiveChapter,
+      setActiveSession,
+      setConnectionState,
+      setCampaigns,
       openCampaign,
       listChapters,
       startMasterSession,
