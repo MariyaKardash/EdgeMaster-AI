@@ -16,7 +16,7 @@ import {
   type Chapter,
   type Session,
 } from '@/database';
-import type { P2pWorkletEvent } from '@/database/p2p/types';
+import type { P2pWorkletClient, P2pWorkletEvent } from '@/database/p2p/types';
 import { getP2pStoragePath } from '@/database/p2p/storage-path';
 import { defaultAlias } from '@/lib/holepunch/defaultAlias';
 import { sessionTopicHex } from '@/lib/holepunch/sessionTopicHex';
@@ -32,8 +32,14 @@ type CampaignContextValue = {
   activeCampaign: Campaign | null;
   activeChapter: Chapter | null;
   activeSession: Session | null;
+  worklet: P2pWorkletClient;
   refreshCampaigns: () => Promise<void>;
-  createCampaign: (name: string) => Promise<Campaign>;
+  setError: (error: string | null) => void;
+  setActiveCampaign: (campaign: Campaign | null) => void;
+  setActiveChapter: (chapter: Chapter | null) => void;
+  setActiveSession: (session: Session | null) => void;
+  setConnectionState: (connectionState: ConnectionState) => void;
+  setCampaigns: (campaigns: Campaign[]) => void;
   openCampaign: (campaignId: string) => Promise<{ campaign: Campaign; chapter: Chapter | null }>;
   startMasterSession: (campaignId: string, chapterId: string) => Promise<Session>;
   joinPlayerSession: (sessionCode: string, displayName?: string) => Promise<Session>;
@@ -134,29 +140,6 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
     };
   }, [refreshCampaignsInternal, worklet]);
 
-  const createCampaign = useCallback(
-    async (name: string) => {
-      setError(null);
-
-      const { campaign } = await repository.createCampaign(name);
-      const chapter = await repository.createChapter({
-        campaignId: campaign.id,
-        title: 'Chapter 1',
-        description: 'The journey begins.',
-        order: 0,
-        generationSource: { type: 'manual' },
-      });
-      const activated = await repository.activateChapter(campaign.id, chapter.id);
-
-      setActiveCampaign(activated.campaign);
-      setActiveChapter(chapter);
-      await refreshCampaignsInternal();
-
-      return activated.campaign;
-    },
-    [refreshCampaignsInternal, repository],
-  );
-
   const openCampaign = useCallback(
     async (campaignId: string) => {
       setError(null);
@@ -253,8 +236,14 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       activeCampaign,
       activeChapter,
       activeSession,
+      worklet,
       refreshCampaigns,
-      createCampaign,
+      setError,
+      setActiveCampaign,
+      setActiveChapter,
+      setActiveSession,
+      setConnectionState,
+      setCampaigns,
       openCampaign,
       startMasterSession,
       joinPlayerSession,
@@ -269,8 +258,14 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       activeCampaign,
       activeChapter,
       activeSession,
+      worklet,
       refreshCampaigns,
-      createCampaign,
+      setError,
+      setActiveCampaign,
+      setActiveChapter,
+      setActiveSession,
+      setConnectionState,
+      setCampaigns,
       openCampaign,
       startMasterSession,
       joinPlayerSession,
