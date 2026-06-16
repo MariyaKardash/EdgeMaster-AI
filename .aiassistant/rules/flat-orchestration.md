@@ -1,7 +1,5 @@
 ---
-description: Flat, readable orchestration in route handlers and flows — inline logic, explicit state, section comments
-globs: app/**/*.tsx
-alwaysApply: false
+apply: always
 ---
 
 # Flat orchestration
