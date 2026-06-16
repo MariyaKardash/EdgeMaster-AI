@@ -24,7 +24,7 @@ export const CampaignSelectionScreen = ({
         </View>
 
         <View style={styles.cards}>
-          <NewCampaignCard onPress={() => onStartNew?.()} />
+          <NewCampaignCard onPress={() => onStartNew?.()} disabled={isLoading} />
           {isLoading ? (
             <Text variant="bodyMd" style={styles.subtitle}>
               Loading campaigns...

@@ -34,6 +34,7 @@ type CampaignContextValue = {
   activeSession: Session | null;
   worklet: P2pWorkletClient;
   refreshCampaigns: () => Promise<void>;
+  runWithoutCampaignRefresh: <T>(fn: () => Promise<T>) => Promise<T>;
   setError: (error: string | null) => void;
   setActiveCampaign: (campaign: Campaign | null) => void;
   setActiveChapter: (chapter: Chapter | null) => void;
@@ -69,18 +70,54 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
   const [activeChapter, setActiveChapter] = useState<Chapter | null>(null);
   const [activeSession, setActiveSession] = useState<Session | null>(null);
   const activeCampaignIdRef = useRef<string | null>(null);
+  const refreshInFlightRef = useRef<Promise<void> | null>(null);
+  const suspendRefreshRef = useRef(false);
 
-  useEffect(() => {
-    activeCampaignIdRef.current = activeCampaign?.id ?? null;
-  }, [activeCampaign?.id]);
+  const setActiveCampaignState = useCallback((campaign: Campaign | null) => {
+    activeCampaignIdRef.current = campaign?.id ?? null;
+    setActiveCampaign(campaign);
+  }, []);
 
   const refreshCampaignsInternal = useCallback(async () => {
-    const summaries = await repository.listLocalCampaigns(activeCampaignIdRef.current);
-    setCampaigns(summaries.map((summary) => summary.campaign));
+    if (refreshInFlightRef.current) {
+      await refreshInFlightRef.current;
+      return;
+    }
+
+    const refresh = (async () => {
+      const summaries = await repository.listLocalCampaigns(activeCampaignIdRef.current);
+      setCampaigns(summaries.map((summary) => summary.campaign));
+    })();
+
+    refreshInFlightRef.current = refresh;
+
+    try {
+      await refresh;
+    } finally {
+      if (refreshInFlightRef.current === refresh) {
+        refreshInFlightRef.current = null;
+      }
+    }
   }, [repository]);
 
   const refreshCampaigns = useCallback(async () => {
     await refreshCampaignsInternal();
+  }, [refreshCampaignsInternal]);
+
+  const runWithoutCampaignRefresh = useCallback(async <T,>(fn: () => Promise<T>) => {
+    suspendRefreshRef.current = true;
+
+    try {
+      return await fn();
+    } finally {
+      suspendRefreshRef.current = false;
+    }
+  }, []);
+
+  const refreshCampaignsRef = useRef(refreshCampaignsInternal);
+
+  useEffect(() => {
+    refreshCampaignsRef.current = refreshCampaignsInternal;
   }, [refreshCampaignsInternal]);
 
   useEffect(() => {
@@ -95,9 +132,10 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
         }
 
         setReady(true);
-        await refreshCampaignsInternal();
+        await refreshCampaignsRef.current();
       } catch (bootstrapError) {
         if (!cancelled) {
+          setReady(false);
           setError(
             bootstrapError instanceof Error
               ? bootstrapError.message
@@ -126,8 +164,8 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
         setConnectionState('error');
       }
 
-      if (event.type === 'db-put' || event.type === 'db-del') {
-        void refreshCampaignsInternal();
+      if ((event.type === 'db-put' || event.type === 'db-del') && !suspendRefreshRef.current) {
+        void refreshCampaignsRef.current();
       }
     });
 
@@ -135,10 +173,11 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
 
     return () => {
       cancelled = true;
+      setReady(false);
       unsubscribe();
       worklet.dispose();
     };
-  }, [refreshCampaignsInternal, worklet]);
+  }, [worklet]);
 
   const openCampaign = useCallback(
     async (campaignId: string) => {
@@ -151,12 +190,12 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       }
 
       const chapter = await repository.getActiveChapter(campaignId);
-      setActiveCampaign(campaign);
+      setActiveCampaignState(campaign);
       setActiveChapter(chapter);
 
       return { campaign, chapter };
     },
-    [repository],
+    [repository, setActiveCampaignState],
   );
 
   const startMasterSession = useCallback(
@@ -207,12 +246,12 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       const chapter = await repository.getActiveChapter(session.campaignId);
 
       setActiveSession(session);
-      setActiveCampaign(campaign);
+      setActiveCampaignState(campaign);
       setActiveChapter(chapter);
 
       return session;
     },
-    [repository, worklet],
+    [repository, worklet, setActiveCampaignState],
   );
 
   const stopSession = useCallback(async () => {
@@ -238,8 +277,9 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       activeSession,
       worklet,
       refreshCampaigns,
+      runWithoutCampaignRefresh,
       setError,
-      setActiveCampaign,
+      setActiveCampaign: setActiveCampaignState,
       setActiveChapter,
       setActiveSession,
       setConnectionState,
@@ -260,8 +300,9 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       activeSession,
       worklet,
       refreshCampaigns,
+      runWithoutCampaignRefresh,
       setError,
-      setActiveCampaign,
+      setActiveCampaignState,
       setActiveChapter,
       setActiveSession,
       setConnectionState,

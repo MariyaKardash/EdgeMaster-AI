@@ -156,6 +156,24 @@ async function openCampaign(message, options = {}) {
     throw new Error('Campaign id is required.');
   }
 
+  if (activeCampaignId === campaignId && campaignBee && campaignCore && !coreKeyHex) {
+    if (swarm) {
+      attachReplicationToPeers();
+    }
+
+    if (!silent) {
+      send({
+        type: 'campaign-opened',
+        campaignId,
+        coreKey: b4a.toString(campaignCore.key, 'hex'),
+        discoveryKey: b4a.toString(campaignCore.discoveryKey, 'hex'),
+        writable: campaignCore.writable,
+      });
+    }
+
+    return;
+  }
+
   if (activeCampaignId !== campaignId) {
     await closeCampaign({ silent: true });
   }

@@ -33,6 +33,7 @@ export function createP2pWorkletClient(): P2pWorkletClient {
   let buffer = '';
   let initialized = false;
   let initPromise: Promise<void> | null = null;
+  let storagePathValue: string | null = null;
   let listeners = new Set<(event: P2pWorkletEvent) => void>();
   const pending = new Map<string, PendingRequest>();
 
@@ -178,18 +179,31 @@ export function createP2pWorkletClient(): P2pWorkletClient {
     }
   };
 
-  const requireInit = () => {
-    if (!initialized) {
-      throw new Error('P2P storage has not been initialized.');
+  const ensureReady = async () => {
+    if (initialized) {
+      return;
     }
+
+    if (initPromise) {
+      await initPromise;
+      return;
+    }
+
+    if (storagePathValue) {
+      await ensureInit(storagePathValue);
+      return;
+    }
+
+    throw new Error('P2P storage has not been initialized.');
   };
 
   const client: P2pWorkletClient = {
     async init(storagePath) {
+      storagePathValue = storagePath;
       await ensureInit(storagePath);
     },
     async openCampaign(campaignId, coreKey) {
-      requireInit();
+      await ensureReady();
 
       return new Promise((resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -214,42 +228,42 @@ export function createP2pWorkletClient(): P2pWorkletClient {
       });
     },
     async closeCampaign() {
-      requireInit();
+      await ensureReady();
       const requestId = createRequestId();
       const result = waitFor<void>(requestId);
       send(ipc, { type: 'close-campaign', requestId });
       await result;
     },
     async put(key, value) {
-      requireInit();
+      await ensureReady();
       const requestId = createRequestId();
       const result = waitFor<void>(requestId);
       send(ipc, { type: 'put', requestId, key, value });
       await result;
     },
     async get<T extends P2pDbValue>(key: string) {
-      requireInit();
+      await ensureReady();
       const requestId = createRequestId();
       const result = waitFor<T | null>(requestId);
       send(ipc, { type: 'get', requestId, key });
       return result;
     },
     async del(key) {
-      requireInit();
+      await ensureReady();
       const requestId = createRequestId();
       const result = waitFor<void>(requestId);
       send(ipc, { type: 'del', requestId, key });
       await result;
     },
     async list<T extends P2pDbValue>(gte: string, lt: string) {
-      requireInit();
+      await ensureReady();
       const requestId = createRequestId();
       const result = waitFor<{ key: string; value: T }[]>(requestId);
       send(ipc, { type: 'list', requestId, gte, lt });
       return result;
     },
     async startSwarm(config) {
-      requireInit();
+      await ensureReady();
 
       return new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
@@ -299,6 +313,7 @@ export function createP2pWorkletClient(): P2pWorkletClient {
         pending.clear();
         initialized = false;
         initPromise = null;
+        storagePathValue = null;
       }
     },
     onEvent,
@@ -324,7 +339,7 @@ export function createP2pWorkletClient(): P2pWorkletClient {
       });
     },
     async waitForDbKey(key, timeoutMs = 30_000) {
-      requireInit();
+      await ensureReady();
       const startedAt = Date.now();
 
       while (Date.now() - startedAt < timeoutMs) {

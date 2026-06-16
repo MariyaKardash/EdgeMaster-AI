@@ -6,7 +6,7 @@ import { Button } from '@/components/molecules/button';
 import { styles } from './new-campaign-card.styles';
 import type { NewCampaignCardProps } from './new-campaign-card.types';
 
-export const NewCampaignCard = ({ onPress }: NewCampaignCardProps) => {
+export const NewCampaignCard = ({ onPress, disabled = false }: NewCampaignCardProps) => {
   return (
     <View style={styles.card}>
       <View pointerEvents="none" style={styles.ambientGlow} />
@@ -27,7 +27,7 @@ export const NewCampaignCard = ({ onPress }: NewCampaignCardProps) => {
       </View>
 
       <View style={styles.action}>
-        <Button title="Initialize World" fullWidth onPress={onPress} />
+        <Button title="Initialize World" fullWidth onPress={onPress} disabled={disabled} />
       </View>
     </View>
   );
