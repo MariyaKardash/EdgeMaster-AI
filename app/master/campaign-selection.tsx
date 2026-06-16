@@ -310,10 +310,10 @@ const CampaignSelectionRoute = () => {
         return;
       }
 
-      // --- 6. Open the session screen ---
+      // --- 6. Open campaign setup ---
       setActiveSession(session);
       setIsSubmitting(false);
-      router.push('/master/session');
+      router.push('/master/campaign-setup/step-1');
     });
   };
 
