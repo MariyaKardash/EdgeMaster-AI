@@ -1,5 +1,5 @@
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import { File } from 'expo-file-system';
 import { useCallback, useState } from 'react';
 
 import { completion } from '@qvac/sdk';
@@ -180,9 +180,7 @@ export function useNewChapter({ campaignId }: UseNewChapterParams): UseNewChapte
       }
 
       setDocState('processing');
-      const content = await FileSystem.readAsStringAsync(asset.uri, {
-        encoding: FileSystem.EncodingType.UTF8,
-      });
+      const content = await new File(asset.uri).text();
 
       setDescription(content.trim());
     } catch (e: unknown) {
