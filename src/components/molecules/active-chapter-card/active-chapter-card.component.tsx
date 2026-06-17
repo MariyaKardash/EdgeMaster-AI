@@ -30,7 +30,9 @@ export const ActiveChapterCard = ({
         <Text variant="bodyMd" style={styles.description} numberOfLines={2}>
           {description}
         </Text>
-        <Button title={OPEN_CHAPTER_LABEL} icon="arrow-forward" onPress={onOpenChapter} />
+        {onOpenChapter && (
+          <Button title={OPEN_CHAPTER_LABEL} icon="arrow-forward" onPress={onOpenChapter} />
+        )}
       </LinearGradient>
     </View>
   );

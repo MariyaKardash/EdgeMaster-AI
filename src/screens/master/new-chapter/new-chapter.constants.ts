@@ -27,15 +27,18 @@ export const SUPPORTED_MIME_TYPES = ['text/plain', 'text/markdown'];
 export const SUPPORTED_EXTENSIONS = ['.txt', '.md'];
 
 export const FIX_SYSTEM_PROMPT =
-  'You are a text formatter for a tabletop RPG campaign. Lightly improve the formatting, ' +
-  'punctuation, and structure of the following text without changing its meaning or ideas. ' +
-  'Return only the improved text with no extra commentary.';
+  'You are a text formatter for a tabletop RPG campaign. ' +
+  'Fix punctuation, grammar, and flow of the following text without changing its meaning or ideas. ' +
+  'Do NOT add titles, headings, chapter labels, or any new structure. ' +
+  'Return only the corrected prose with no extra commentary.';
 
 export const GENERATE_SYSTEM_PROMPT_BASE =
   'You are a creative writer for a tabletop RPG campaign. Generate a vivid and engaging ' +
   'chapter description based on the following prompt. The description should set the scene, ' +
-  'establish the tone, and hint at the adventure ahead. Return only the chapter description ' +
-  'with no extra commentary.';
+  'establish the tone, and hint at the adventure ahead. ' +
+  'Return only the chapter description as plain prose with no extra commentary. ' +
+  'Do NOT start with a title, heading, bold label, or any markdown formatting. ' +
+  'Begin directly with the scene.';
 
 export function buildGenerateSystemPrompt(priorChapters: { title: string; description: string }[]) {
   if (priorChapters.length === 0) return GENERATE_SYSTEM_PROMPT_BASE;

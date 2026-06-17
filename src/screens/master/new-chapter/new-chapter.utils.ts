@@ -5,12 +5,11 @@ import type { ChapterInputTab } from './new-chapter.types';
 
 export function buildGenerationSource(
   activeTab: ChapterInputTab,
-  promptText: string,
   documentName?: string,
 ): ChapterGenerationSource {
   switch (activeTab) {
     case 'prompt':
-      return { type: 'prompt', prompt: promptText };
+      return { type: 'ai_generated' };
     case 'doc':
       return { type: 'document', documentName: documentName ?? '' };
     default:

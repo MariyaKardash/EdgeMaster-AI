@@ -32,6 +32,12 @@ export const styles = StyleSheet.create((theme) => ({
   cards: {
     gap: theme.spacing.lg,
   },
+  sectionHeader: {
+    color: theme.colors.primary,
+  },
+  campaignList: {
+    gap: theme.spacing.sm,
+  },
   footer: {
     paddingTop: theme.spacing.xl,
     paddingHorizontal: theme.spacing.containerMargin,

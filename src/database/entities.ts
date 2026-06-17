@@ -107,14 +107,7 @@ export const chapterStatusSchema = z.enum(['draft', 'active', 'completed']);
 
 export const chapterGenerationSourceSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('manual') }),
-  z.object({
-    type: z.literal('prompt'),
-    prompt: z.string().min(1),
-  }),
-  z.object({
-    type: z.literal('voice'),
-    transcript: z.string().min(1),
-  }),
+  z.object({ type: z.literal('ai_generated') }),
   z.object({
     type: z.literal('document'),
     documentName: z.string().min(1),

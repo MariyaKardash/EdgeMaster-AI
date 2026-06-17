@@ -1,6 +1,6 @@
 export type ActiveChapterCardProps = {
   title: string;
   description: string;
-  imageUri: string;
+  imageUri?: string;
   onOpenChapter?: () => void;
 };

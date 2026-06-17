@@ -14,6 +14,7 @@ import {
   createP2pWorkletClient,
   type Campaign,
   type Chapter,
+  type GameEvent,
   type Session,
 } from '@/database';
 import type { P2pWorkletClient, P2pWorkletEvent } from '@/database/p2p/types';
@@ -43,6 +44,18 @@ type CampaignContextValue = {
   setCampaigns: (campaigns: Campaign[]) => void;
   openCampaign: (campaignId: string) => Promise<{ campaign: Campaign; chapter: Chapter | null }>;
   listChapters: (campaignId: string) => Promise<Chapter[]>;
+  getChapter: (chapterId: string) => Promise<Chapter | null>;
+  createChapter: (input: {
+    campaignId: string;
+    title: string;
+    description: string;
+    order: number;
+    generationSource?: Chapter['generationSource'];
+  }) => Promise<Chapter>;
+  activateChapter: (campaignId: string, chapterId: string) => Promise<Chapter>;
+  deleteChapter: (campaignId: string, chapterId: string) => Promise<void>;
+  listGameEvents: (chapterId: string) => Promise<GameEvent[]>;
+  summarizeChapter: (chapterId: string, summary: string) => Promise<Chapter>;
   startMasterSession: (campaignId: string, chapterId: string) => Promise<Session>;
   joinPlayerSession: (topicHex: string, displayName?: string) => Promise<Session>;
   stopSession: () => Promise<void>;
@@ -231,6 +244,51 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
     [repository],
   );
 
+  const getChapter = useCallback(
+    (chapterId: string) => repository.getChapter(chapterId),
+    [repository],
+  );
+
+  const createChapter = useCallback(
+    (input: {
+      campaignId: string;
+      title: string;
+      description: string;
+      order: number;
+      generationSource?: Chapter['generationSource'];
+    }) => repository.createChapter(input),
+    [repository],
+  );
+
+  const activateChapter = useCallback(
+    async (campaignId: string, chapterId: string) => {
+      const result = await repository.activateChapter(campaignId, chapterId);
+      setActiveChapter(result.chapter);
+      return result.chapter;
+    },
+    [repository, setActiveChapter],
+  );
+
+  const deleteChapter = useCallback(
+    (campaignId: string, chapterId: string) => repository.deleteChapter(campaignId, chapterId),
+    [repository],
+  );
+
+  const listGameEvents = useCallback(
+    (chapterId: string) => repository.listGameEvents(chapterId),
+    [repository],
+  );
+
+  const summarizeChapter = useCallback(
+    async (chapterId: string, summary: string) => {
+      const result = await repository.summarizeChapter(chapterId, summary);
+      // Clear activeChapter from context state if it was the one just completed
+      setActiveChapter((prev) => (prev?.id === chapterId ? null : prev));
+      return result;
+    },
+    [repository],
+  );
+
   const startMasterSession = useCallback(
     async (campaignId: string, chapterId: string) => {
       setError(null);
@@ -334,6 +392,12 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       setCampaigns,
       openCampaign,
       listChapters,
+      getChapter,
+      createChapter,
+      activateChapter,
+      deleteChapter,
+      listGameEvents,
+      summarizeChapter,
       startMasterSession,
       joinPlayerSession,
       stopSession,
@@ -359,6 +423,12 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       setCampaigns,
       openCampaign,
       listChapters,
+      getChapter,
+      createChapter,
+      activateChapter,
+      deleteChapter,
+      listGameEvents,
+      summarizeChapter,
       startMasterSession,
       joinPlayerSession,
       stopSession,

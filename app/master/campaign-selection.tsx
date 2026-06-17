@@ -21,17 +21,17 @@ const CampaignSelectionRoute = () => {
   const { ready, campaignsLoading, error, campaigns, activeSession, openCampaign } = useCampaign();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const campaignCards: CampaignSessionInfo[] = campaigns.map((campaign, index) => {
-    const isActiveCampaign = activeSession?.campaignId === campaign.id;
-
-    return {
-      campaignId: campaign.id,
-      name: campaign.name,
-      sessionNumber: index + 1,
-      lastPlayed: formatLastPlayed(campaign.updatedAt),
-      topicHex: isActiveCampaign ? activeSession.topicHex : undefined,
-    };
-  });
+  const campaignCards: CampaignSessionInfo[] = [...campaigns]
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .map((campaign) => {
+      const isActiveCampaign = activeSession?.campaignId === campaign.id;
+      return {
+        campaignId: campaign.id,
+        name: campaign.name,
+        lastPlayed: formatLastPlayed(campaign.updatedAt),
+        topicHex: isActiveCampaign ? activeSession.topicHex : undefined,
+      };
+    });
 
   const handleStartNew = () => {
     campaignSetupStore.reset();

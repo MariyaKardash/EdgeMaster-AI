@@ -20,7 +20,7 @@ import { styles } from './chapters-list.styles';
 import type { ChaptersListScreenProps } from './chapters-list.types';
 
 export const ChaptersListScreen = ({
-  chapters = MOCK_CHAPTERS,
+  chapters = [],
   onChapterPress,
   onNewChapter,
   onTabPress,

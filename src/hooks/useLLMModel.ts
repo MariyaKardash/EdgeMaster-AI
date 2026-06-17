@@ -18,13 +18,19 @@ export type UseLLMModelResult = {
   isReady: boolean;
 };
 
-export function useLLMModel(): UseLLMModelResult {
+type UseLLMModelParams = {
+  ctxSize?: number;
+};
+
+export function useLLMModel({ ctxSize = 1024 }: UseLLMModelParams = {}): UseLLMModelResult {
   const [modelId, setModelId] = useState<string | null>(null);
   const [status, setStatus] = useState<LLMModelStatus>('idle');
   const [statusLabel, setStatusLabel] = useState('Initializing…');
   const [downloadPct, setDownloadPct] = useState<number | null>(null);
 
   const mountedRef = useRef(true);
+  // Capture ctxSize at mount time — changing it after load would require a full model reload
+  const ctxSizeRef = useRef(ctxSize);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -52,7 +58,7 @@ export function useLLMModel(): UseLLMModelResult {
           modelType: 'llamacpp-completion',
           modelConfig: {
             device: 'gpu',
-            ctx_size: 1024,
+            ctx_size: ctxSizeRef.current,
             verbosity: VERBOSITY.ERROR,
           },
           onProgress: (p: ModelProgressUpdate) => {

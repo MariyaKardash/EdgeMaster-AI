@@ -44,6 +44,7 @@ const SessionDashboardRoute = () => {
   const {
     ready,
     activeSession,
+    activeCampaign,
     activeChapter,
     connectedPeers,
     connectionState,
@@ -355,12 +356,17 @@ const SessionDashboardRoute = () => {
       activeChapterDescription={activeChapter?.description}
       connectedPlayers={displayedConnectedPlayers}
       onStartSession={() => void handleStartSession()}
-      onOpenChapter={() => {
-        router.push({
-          pathname: '/master/live-control',
-          params: campaignId ? { campaignId } : undefined,
-        });
-      }}
+      campaignName={activeCampaign?.name}
+      onOpenChapter={
+        activeChapter
+          ? () => {
+              router.push({
+                pathname: '/master/live-control',
+                params: campaignId ? { campaignId } : undefined,
+              });
+            }
+          : undefined
+      }
       onTabPress={(tab) => {
         navigateSessionDashboardTab(router, tab, campaignId);
       }}

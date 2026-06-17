@@ -27,4 +27,6 @@ export {
 export { SpinningRing } from './spinning-ring';
 export { StatusChip } from './status-chip';
 export { SuccessSparkles } from './success-sparkles';
+export { TabBar } from './tab-bar';
+export type { TabBarItem } from './tab-bar';
 export { TextField } from './text-field';

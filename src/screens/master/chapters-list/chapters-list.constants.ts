@@ -14,8 +14,7 @@ export const NEW_CHAPTER_FAB_LABEL = 'New Chapter';
 
 export const EMPTY_CHAPTERS_TITLE = 'No chapters yet';
 
-export const EMPTY_CHAPTERS_DESCRIPTION =
-  'Your grand epic begins with a single page. Create your first adventure to get started.';
+export const EMPTY_CHAPTERS_DESCRIPTION = 'Create your first chapter to begin the adventure.';
 
 export const MOCK_CHAPTERS: ChapterListItem[] = [
   {
