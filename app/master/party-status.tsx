@@ -2,6 +2,7 @@ import { useRouter } from 'expo-router';
 
 import { useCampaignId } from '@/hooks/useCampaignSessionId';
 import { navigateSessionDashboardTab } from '@/navigation/session-dashboard-tabs';
+import { setEquipHeroPlayerInput } from '@/screens/master/equip-hero';
 import { PartyStatusScreen } from '@/screens/master/party-status';
 
 const PartyStatusRoute = () => {
@@ -10,8 +11,15 @@ const PartyStatusRoute = () => {
 
   return (
     <PartyStatusScreen
-      onEquipHero={() => {
-        // TODO: navigate to equip hero flow
+      onEquipHero={(player) => {
+        setEquipHeroPlayerInput(player);
+        router.push({
+          pathname: '/master/equip-hero',
+          params: {
+            playerId: player.id,
+            ...(campaignId ? { campaignId } : {}),
+          },
+        });
       }}
       onTabPress={(tab) => {
         navigateSessionDashboardTab(router, tab, campaignId);
