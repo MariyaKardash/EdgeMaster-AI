@@ -35,8 +35,10 @@ export const FIX_SYSTEM_PROMPT =
 export const GENERATE_SYSTEM_PROMPT_BASE =
   'You are a creative writer for a tabletop RPG campaign. Generate a vivid and engaging ' +
   'chapter description based on the following prompt. The description should set the scene, ' +
-  'establish the tone, and hint at the adventure ahead. Return only the chapter description ' +
-  'with no extra commentary.';
+  'establish the tone, and hint at the adventure ahead. ' +
+  'Return only the chapter description as plain prose with no extra commentary. ' +
+  'Do NOT start with a title, heading, bold label, or any markdown formatting. ' +
+  'Begin directly with the scene.';
 
 export function buildGenerateSystemPrompt(priorChapters: { title: string; description: string }[]) {
   if (priorChapters.length === 0) return GENERATE_SYSTEM_PROMPT_BASE;

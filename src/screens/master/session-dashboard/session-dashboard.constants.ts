@@ -12,7 +12,7 @@ export const getActivePlayersLabel = (count: number) => `${count} Active`;
 
 export const NO_ACTIVE_CHAPTER_TITLE = 'The Story Awaits';
 export const NO_ACTIVE_CHAPTER_DESCRIPTION =
-  'No chapter is active yet. Head to the Chapters tab to begin your next adventure.';
+  'No chapter is active yet. Go to Chapters to begin your next adventure.';
 
 export const MOCK_CONNECTED_PLAYERS: ConnectedPlayer[] = [
   {

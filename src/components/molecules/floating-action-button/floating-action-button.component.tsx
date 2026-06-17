@@ -28,7 +28,7 @@ export const FloatingActionButton = ({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
     >
-      <Icon name="add" size={32} color="onTertiaryContainer" />
+      <Icon name="add" size={32} color="background" />
     </AnimatedPressable>
   );
 };

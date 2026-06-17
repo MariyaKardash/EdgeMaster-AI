@@ -25,6 +25,7 @@ type UseChapterDetailParams = {
   chapterId: string;
   campaignId: string;
   onDeleted: () => void;
+  onStarted: () => void;
   onCompleteTapped: (chapterId: string) => void;
 };
 
@@ -32,6 +33,7 @@ export function useChapterDetail({
   chapterId,
   campaignId,
   onDeleted,
+  onStarted,
   onCompleteTapped,
 }: UseChapterDetailParams): UseChapterDetailResult {
   const { getChapter, activateChapter, deleteChapter } = useCampaign();
@@ -75,6 +77,7 @@ export function useChapterDetail({
     try {
       const updated = await activateChapter(campaignId, chapterId);
       setChapter(updated);
+      onStarted();
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Could not start chapter.';
       console.error('[useChapterDetail] activateChapter failed:', e);
@@ -82,7 +85,7 @@ export function useChapterDetail({
     } finally {
       setIsActivating(false);
     }
-  }, [isActivating, activateChapter, campaignId, chapterId]);
+  }, [isActivating, activateChapter, campaignId, chapterId, onStarted]);
 
   const handleComplete = useCallback(() => {
     onCompleteTapped(chapterId);

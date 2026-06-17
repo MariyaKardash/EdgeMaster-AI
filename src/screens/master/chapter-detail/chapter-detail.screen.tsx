@@ -23,6 +23,7 @@ export function ChapterDetailScreen({
   chapterId,
   campaignId,
   onBack,
+  onStarted,
   onCompleteTapped,
 }: ChapterDetailScreenProps) {
   const insets = useSafeAreaInsets();
@@ -42,6 +43,7 @@ export function ChapterDetailScreen({
     chapterId,
     campaignId,
     onDeleted: onBack,
+    onStarted,
     onCompleteTapped,
   });
 

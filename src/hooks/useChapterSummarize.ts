@@ -1,20 +1,11 @@
-import {
-  completion,
-  downloadAsset,
-  LLAMA_3_2_1B_INST_Q4_0,
-  loadModel,
-  unloadModel,
-  VERBOSITY,
-  type ModelProgressUpdate,
-} from '@qvac/sdk';
+import { completion } from '@qvac/sdk';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useCampaign } from '@/contexts/campaign-context';
 import type { Chapter, GameEvent } from '@/database';
 import { FIX_SYSTEM_PROMPT } from '@/screens/master/new-chapter/new-chapter.constants';
+import { useLLMModel, type LLMModelStatus } from './useLLMModel';
 import { useTranscription } from './useTranscription';
-
-export type ChapterSummarizeModelStatus = 'idle' | 'downloading' | 'loading' | 'ready' | 'error';
 
 export type UseChapterSummarizeResult = {
   chapter: Chapter | null;
@@ -22,7 +13,7 @@ export type UseChapterSummarizeResult = {
   isLoadingData: boolean;
   summaryText: string;
   setSummaryText: (text: string) => void;
-  modelStatus: ChapterSummarizeModelStatus;
+  modelStatus: LLMModelStatus;
   modelStatusLabel: string;
   downloadPct: number | null;
   isGenerating: boolean;
@@ -40,7 +31,12 @@ type Params = {
   onSaved: () => void;
 };
 
-function buildSummaryPrompt(chapter: Chapter, events: GameEvent[]): string {
+type SummaryPrompt = {
+  systemContent: string;
+  userContent: string;
+};
+
+function buildSummaryPrompt(chapter: Chapter, events: GameEvent[]): SummaryPrompt {
   const hasEvents = events.length > 0;
 
   const eventLines = hasEvents
@@ -52,20 +48,22 @@ function buildSummaryPrompt(chapter: Chapter, events: GameEvent[]): string {
   const contextNote = hasEvents
     ? `Use the chapter background only for context (names, setting, tone). ` +
       `The summary must be driven by the events — they represent what actually happened at the table.`
-    : `No events were recorded during this chapter. ` +
-      `Write a brief summary based solely on the chapter background below.`;
+    : `Use the chapter background below as the sole source.`;
 
-  return (
+  const systemContent =
     `You are a chronicler for a tabletop RPG campaign. ` +
     `Write a vivid narrative summary in 2–3 paragraphs of plain prose. ` +
-    `Use past tense. Do NOT start with a title, chapter label, or heading of any kind. ` +
-    `Do NOT use bullet points. Begin directly with the narrative.\n\n` +
+    `Use past tense. Output plain prose only — no titles, no headings, no bold labels, ` +
+    `no markdown formatting of any kind, no bullet points. ` +
+    `Begin directly with the first sentence of the narrative.`;
+
+  const userContent =
     `${contextNote}\n\n` +
     `Chapter title: ${chapter.title}\n` +
     `Chapter background: ${chapter.description}\n\n` +
-    (eventLines ? `Events that took place:\n${eventLines}\n\n` : '') +
-    `Summary:`
-  );
+    (eventLines ? `Events that took place:\n${eventLines}` : '');
+
+  return { systemContent, userContent };
 }
 
 export function useChapterSummarize({ chapterId, onSaved }: Params): UseChapterSummarizeResult {
@@ -85,11 +83,16 @@ export function useChapterSummarize({ chapterId, onSaved }: Params): UseChapterS
     onError: (msg) => setErrorMessage(msg),
   });
 
-  const [modelStatus, setModelStatus] = useState<ChapterSummarizeModelStatus>('idle');
-  const [modelStatusLabel, setModelStatusLabel] = useState('');
-  const [downloadPct, setDownloadPct] = useState<number | null>(null);
-  const modelIdRef = useRef<string | null>(null);
+  const llm = useLLMModel({ ctxSize: 2048 });
+
+  // mountedRef guards async state updates in generate / fix / save after unmount
   const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Keep refs so the auto-generate effect always sees fresh values
   const chapterRef = useRef<Chapter | null>(null);
@@ -129,68 +132,10 @@ export function useChapterSummarize({ chapterId, onSaved }: Params): UseChapterS
     };
   }, [chapterId, getChapter, listGameEvents]);
 
-  // Download + load model on mount
-  useEffect(() => {
-    mountedRef.current = true;
-
-    (async () => {
-      try {
-        setModelStatus('downloading');
-        setModelStatusLabel('Downloading AI model…');
-
-        await downloadAsset({
-          assetSrc: LLAMA_3_2_1B_INST_Q4_0,
-          onProgress: (p: ModelProgressUpdate) => {
-            if (mountedRef.current) setDownloadPct(Math.round(p.percentage));
-          },
-        });
-
-        if (!mountedRef.current) return;
-
-        setModelStatus('loading');
-        setModelStatusLabel('Loading AI model…');
-        setDownloadPct(null);
-
-        const id = await loadModel({
-          modelSrc: LLAMA_3_2_1B_INST_Q4_0,
-          modelType: 'llamacpp-completion',
-          modelConfig: {
-            device: 'gpu',
-            ctx_size: 2048,
-            verbosity: VERBOSITY.ERROR,
-          },
-          onProgress: (p: ModelProgressUpdate) => {
-            if (mountedRef.current) setDownloadPct(Math.round(p.percentage));
-          },
-        });
-
-        if (!mountedRef.current) return;
-
-        modelIdRef.current = id;
-        setModelStatus('ready');
-        setModelStatusLabel('AI ready');
-        setDownloadPct(null);
-      } catch (e) {
-        if (mountedRef.current) {
-          setModelStatus('error');
-          setModelStatusLabel(e instanceof Error ? e.message : 'Failed to load AI model.');
-        }
-      }
-    })();
-
-    return () => {
-      mountedRef.current = false;
-      if (modelIdRef.current) {
-        void unloadModel({ modelId: modelIdRef.current, clearStorage: false }).catch(() => {});
-        modelIdRef.current = null;
-      }
-    };
-  }, []);
-
   // Auto-generate as soon as model is ready and data is loaded — only if events exist
   useEffect(() => {
     if (
-      modelStatus !== 'ready' ||
+      !llm.isReady ||
       isLoadingData ||
       !chapterRef.current ||
       eventsRef.current.length === 0 || // skip if no events — DM must write manually
@@ -200,7 +145,7 @@ export function useChapterSummarize({ chapterId, onSaved }: Params): UseChapterS
     }
 
     hasTriggeredRef.current = true;
-    const modelId = modelIdRef.current;
+    const modelId = llm.modelId;
     if (!modelId) return;
 
     const run = async () => {
@@ -209,21 +154,33 @@ export function useChapterSummarize({ chapterId, onSaved }: Params): UseChapterS
       setSummaryText('');
 
       try {
-        const prompt = buildSummaryPrompt(chapterRef.current!, eventsRef.current);
+        const { systemContent, userContent } = buildSummaryPrompt(
+          chapterRef.current!,
+          eventsRef.current,
+        );
 
         const genRun = completion({
           modelId,
-          history: [{ role: 'user', content: prompt }],
+          history: [
+            { role: 'system', content: systemContent },
+            { role: 'user', content: userContent },
+            // Prefill forces the model to continue mid-sentence, preventing a title as the first token
+            { role: 'assistant', content: 'The' },
+          ],
           stream: true,
         });
 
-        let acc = '';
+        let acc = 'The';
         for await (const event of genRun.events) {
           if (event.type === 'contentDelta') {
             acc += event.text;
             if (mountedRef.current) setSummaryText(acc);
           }
         }
+
+        // Strip any leading bold/heading line the model may still have produced
+        const cleaned = acc.replace(/^\*{1,3}[^*\n]+\*{1,3}\n?/, '').trimStart();
+        if (cleaned !== acc && mountedRef.current) setSummaryText(cleaned);
       } catch (e) {
         if (mountedRef.current) {
           setErrorMessage(e instanceof Error ? e.message : 'Generation failed.');
@@ -234,7 +191,7 @@ export function useChapterSummarize({ chapterId, onSaved }: Params): UseChapterS
     };
 
     void run();
-  }, [modelStatus, isLoadingData]);
+  }, [llm.isReady, llm.modelId, isLoadingData]);
 
   const onDictationPress = useCallback(async () => {
     if (transcription.dictationState === 'recording') {
@@ -248,7 +205,7 @@ export function useChapterSummarize({ chapterId, onSaved }: Params): UseChapterS
   }, [transcription]);
 
   const handleFix = useCallback(async () => {
-    const modelId = modelIdRef.current;
+    const modelId = llm.modelId;
     if (!summaryText.trim() || !modelId || isFixing) return;
 
     setIsFixing(true);
@@ -275,7 +232,7 @@ export function useChapterSummarize({ chapterId, onSaved }: Params): UseChapterS
     } finally {
       if (mountedRef.current) setIsFixing(false);
     }
-  }, [summaryText, isFixing]);
+  }, [summaryText, isFixing, llm.modelId]);
 
   const save = useCallback(async () => {
     if (!summaryText.trim() || isSaving) return;
@@ -301,9 +258,9 @@ export function useChapterSummarize({ chapterId, onSaved }: Params): UseChapterS
     isLoadingData,
     summaryText,
     setSummaryText,
-    modelStatus,
-    modelStatusLabel,
-    downloadPct,
+    modelStatus: llm.status,
+    modelStatusLabel: llm.statusLabel,
+    downloadPct: llm.downloadPct,
     isGenerating,
     isFixing,
     isSaving,

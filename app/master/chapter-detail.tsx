@@ -18,8 +18,10 @@ const ChapterDetailRoute = () => {
       chapterId={chapterId}
       campaignId={campaignId}
       onBack={() => router.back()}
+      onStarted={() => {
+        router.dismissTo('/master/session-dashboard');
+      }}
       onCompleteTapped={(id) => {
-        // Navigate to the summarize screen (to be built)
         router.push({
           pathname: '/master/chapter-summarize',
           params: { chapterId: id, campaignId },

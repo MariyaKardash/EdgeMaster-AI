@@ -2,6 +2,7 @@ export type ChapterDetailScreenProps = {
   chapterId: string;
   campaignId: string;
   onBack: () => void;
+  onStarted: () => void;
   onCompleteTapped: (chapterId: string) => void;
 };
 
