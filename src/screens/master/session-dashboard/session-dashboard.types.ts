@@ -3,10 +3,14 @@ import type { SessionDashboardTab } from '@/components/molecules/session-dashboa
 
 export type SessionDashboardScreenProps = {
   sessionId?: string;
+  isSessionActive?: boolean;
+  isSessionConnecting?: boolean;
+  isStartingSession?: boolean;
   activeChapterTitle?: string;
   activeChapterDescription?: string;
   activeChapterImageUri?: string;
   connectedPlayers?: ConnectedPlayer[];
+  onStartSession?: () => void;
   onOpenChapter?: () => void;
   onPlayerPress?: (player: ConnectedPlayer) => void;
   onTabPress?: (tab: SessionDashboardTab) => void;

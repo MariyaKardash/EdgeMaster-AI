@@ -8,6 +8,12 @@ export const ACTIVE_CHAPTER_SECTION_TITLE = 'Active Chapter';
 
 export const CONNECTED_PLAYERS_SECTION_TITLE = 'Connected Players';
 
+export const START_SESSION_LABEL = 'Start Session';
+
+export const STARTING_SESSION_LABEL = 'Starting...';
+
+export const SESSION_ACTIVE_LABEL = 'Session Active';
+
 export const getActivePlayersLabel = (count: number) => `${count} Active`;
 
 export const ACTIVE_CHAPTER_TITLE = 'The Sunken Marshes';
