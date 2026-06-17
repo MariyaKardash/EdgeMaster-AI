@@ -1,2 +1,8 @@
 export { createEntity, createEntityId, nowIso, touchEntity } from './entity';
-export { generateSessionCode, isValidSessionCode, normalizeSessionCode } from './session-code';
+export { normalizeStoredCampaign } from './normalize-stored-campaign';
+export {
+  generateSessionCode,
+  isValidSessionCode,
+  normalizeSessionCode,
+  sessionIdFromCampaignId,
+} from './session-code';

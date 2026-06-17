@@ -53,7 +53,7 @@ export const CampaignSetupStep3Screen = ({
     }
 
     campaignSetupStore.setStep3({ availableItemIds: availableIds });
-    onFinalize?.();
+    onFinalize?.(availableIds);
   };
 
   const isFinalizeDisabled = availableIds.length < MIN_AVAILABLE_ITEMS || isSubmitting;

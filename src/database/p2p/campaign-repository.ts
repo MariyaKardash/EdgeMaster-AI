@@ -23,7 +23,7 @@ import {
   type Session,
   type StatsHistoryEntry,
 } from '../entities';
-import { createEntity, generateSessionCode, touchEntity } from '../utils';
+import { createEntity, generateSessionCode, normalizeStoredCampaign, touchEntity } from '../utils';
 import type { P2pWorkletClient } from './types';
 import { logHolepunch } from '@/lib/holepunch/logHolepunch';
 import { sessionTopicHex } from '@/lib/holepunch/sessionTopicHex';
@@ -153,7 +153,7 @@ export class CampaignRepository {
     this.log('getCampaign', { campaignId });
     const value = await this.worklet.get<Campaign>(dbKeys.campaign(campaignId));
 
-    const campaign = value ? this.parse(campaignSchema, value) : null;
+    const campaign = value ? this.parse(campaignSchema, normalizeStoredCampaign(value)) : null;
     this.log('getCampaign:result', { campaignId, found: Boolean(campaign) });
     return campaign;
   }

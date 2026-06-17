@@ -46,6 +46,7 @@ export const campaignSchema = baseEntitySchema.extend({
   name: z.string().trim().min(1),
   description: z.string().trim().min(1),
   activeChapterId: z.uuid().nullable(),
+  sessionId: z.string().min(1).optional(),
 });
 
 export type Campaign = z.infer<typeof campaignSchema>;

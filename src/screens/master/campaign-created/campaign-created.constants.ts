@@ -12,12 +12,4 @@ export const MOCK_ITEM_COUNT = 12;
 
 export const MOCK_SESSION_ID = 'AX7K-9M2P';
 
-const SESSION_ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-
-const randomSegment = (length: number): string =>
-  Array.from(
-    { length },
-    () => SESSION_ID_CHARS[Math.floor(Math.random() * SESSION_ID_CHARS.length)],
-  ).join('');
-
-export const generateSessionId = (): string => `${randomSegment(4)}-${randomSegment(4)}`;
+export { sessionIdFromCampaignId } from '@/database/utils/session-code';

@@ -28,7 +28,7 @@ export const MOCK_ARTIFACTS: ArtifactItem[] = [
   },
 ];
 
-export const DEFAULT_AVAILABLE_ITEM_IDS: string[] = [];
+export const DEFAULT_AVAILABLE_ITEM_IDS = MOCK_ARTIFACTS.map((artifact) => artifact.id);
 
 export const NEW_ARTIFACT_TITLE = 'New Item Profile';
 
