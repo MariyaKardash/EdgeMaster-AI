@@ -10,6 +10,9 @@ const LiveControlRoute = () => {
 
   return (
     <LiveControlScreen
+      onSummarizeAndEndChapter={() => {
+        //TODO: add redirect to summary screen
+      }}
       onTabPress={(tab) => {
         navigateSessionDashboardTab(router, tab, campaignId);
       }}
