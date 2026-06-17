@@ -1,29 +1,23 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
-import { sessionIdFromCampaignId } from '@/database';
 import { useCampaign } from '@/contexts/campaign-context';
+import { useCampaignSessionId } from '@/hooks/useCampaignSessionId';
 import { CampaignCreatedScreen } from '@/screens/master/campaign-created';
 
 const CampaignCreatedRoute = () => {
   const router = useRouter();
   const { activeCampaign } = useCampaign();
   const {
-    sessionId: paramSessionId,
     campaignName: paramCampaignName,
     characterCount,
     itemCount,
   } = useLocalSearchParams<{
-    sessionId?: string;
     campaignName?: string;
     characterCount?: string;
     itemCount?: string;
   }>();
 
-  const sessionId =
-    activeCampaign?.sessionId ??
-    (activeCampaign?.id ? sessionIdFromCampaignId(activeCampaign.id) : undefined) ??
-    (typeof paramSessionId === 'string' ? paramSessionId : undefined);
-
+  const sessionId = useCampaignSessionId();
   const campaignName =
     activeCampaign?.name ?? (typeof paramCampaignName === 'string' ? paramCampaignName : undefined);
 
@@ -41,7 +35,7 @@ const CampaignCreatedRoute = () => {
       onOpenDashboard={() => {
         router.replace({
           pathname: '/master/session-dashboard',
-          params: sessionId ? { sessionId } : undefined,
+          params: activeCampaign?.id ? { campaignId: activeCampaign.id } : undefined,
         });
       }}
     />

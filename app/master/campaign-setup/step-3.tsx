@@ -6,7 +6,6 @@ import {
   campaignSchema,
   createEntity,
   dbKeys,
-  sessionIdFromCampaignId,
   normalizeStoredCampaign,
   type Campaign,
   type CharacterTemplate,
@@ -97,10 +96,6 @@ const CampaignSetupStep3Route = () => {
             description: description.trim(),
             activeChapterId: null,
           });
-          campaign = {
-            ...campaign,
-            sessionId: sessionIdFromCampaignId(campaign.id),
-          };
 
           setActiveCampaign(campaign);
 
@@ -233,7 +228,6 @@ const CampaignSetupStep3Route = () => {
         router.replace({
           pathname: '/master/campaign-created',
           params: {
-            sessionId: campaign.sessionId,
             campaignName: campaign.name,
             characterCount: String(selectedCharacters.length),
             itemCount: String(availableArtifacts.length),

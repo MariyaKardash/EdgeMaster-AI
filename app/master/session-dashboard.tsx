@@ -1,22 +1,25 @@
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 
+import { useCampaignId, useCampaignSessionId } from '@/hooks/useCampaignSessionId';
 import { navigateSessionDashboardTab } from '@/navigation/session-dashboard-tabs';
 import { SessionDashboardScreen } from '@/screens/master/session-dashboard';
-import { MOCK_SESSION_ID } from '@/screens/master/session-dashboard/session-dashboard.constants';
 
 const SessionDashboardRoute = () => {
   const router = useRouter();
-  const { sessionId } = useLocalSearchParams<{ sessionId?: string }>();
-  const resolvedSessionId = typeof sessionId === 'string' ? sessionId : MOCK_SESSION_ID;
+  const campaignId = useCampaignId();
+  const sessionId = useCampaignSessionId();
 
   return (
     <SessionDashboardScreen
-      sessionId={resolvedSessionId}
+      sessionId={sessionId}
       onOpenChapter={() => {
-        router.push({ pathname: '/master/live-control', params: { sessionId: resolvedSessionId } });
+        router.push({
+          pathname: '/master/live-control',
+          params: campaignId ? { campaignId } : undefined,
+        });
       }}
       onTabPress={(tab) => {
-        navigateSessionDashboardTab(router, tab, resolvedSessionId);
+        navigateSessionDashboardTab(router, tab, campaignId);
       }}
     />
   );

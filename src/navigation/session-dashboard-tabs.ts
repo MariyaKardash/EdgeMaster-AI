@@ -7,9 +7,9 @@ type Router = ReturnType<typeof useRouter>;
 export const navigateSessionDashboardTab = (
   router: Router,
   tab: SessionDashboardTab,
-  sessionId?: string,
+  campaignId?: string,
 ) => {
-  const params = sessionId ? { sessionId } : undefined;
+  const params = campaignId ? { campaignId } : undefined;
 
   switch (tab) {
     case 'overview':
