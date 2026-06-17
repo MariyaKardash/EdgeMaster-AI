@@ -46,7 +46,7 @@ export const styles = StyleSheet.create((theme) => ({
     paddingHorizontal: theme.spacing.containerMargin,
     paddingTop: theme.spacing.lg,
     paddingBottom: theme.spacing.xl,
-    gap: theme.spacing.xl,
+    gap: theme.spacing.gutter,
   },
 
   metaRow: {

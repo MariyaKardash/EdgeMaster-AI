@@ -1,15 +1,16 @@
+import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUnistyles } from 'react-native-unistyles';
 
 import { Icon } from '@/components/atoms/icon';
 import { Button } from '@/components/molecules/button';
-import { ButtonSecondary } from '@/components/molecules/button-secondary';
+import { TabBar } from '@/components/molecules/tab-bar';
 import { useChapterDetail } from '@/hooks/useChapterDetail';
 
-import { STATUS_LABELS } from './chapter-detail.constants';
+import { DETAIL_TABS, STATUS_LABELS } from './chapter-detail.constants';
 import { styles } from './chapter-detail.styles';
-import type { ChapterDetailScreenProps } from './chapter-detail.types';
+import type { ChapterDetailScreenProps, DetailTab } from './chapter-detail.types';
 import {
   canComplete,
   canDelete,
@@ -26,6 +27,7 @@ export function ChapterDetailScreen({
 }: ChapterDetailScreenProps) {
   const insets = useSafeAreaInsets();
   const { theme } = useUnistyles();
+  const [activeTab, setActiveTab] = useState<DetailTab>('description');
 
   const {
     chapter,
@@ -105,22 +107,29 @@ export function ChapterDetailScreen({
               )}
             </View>
 
-            {/* Description */}
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Description</Text>
-              <View style={styles.sectionCard}>
-                <Text style={styles.sectionBody}>{chapter.description}</Text>
-              </View>
-            </View>
-
-            {/* Summary — only for completed chapters */}
+            {/* Tabs — only for completed chapters */}
             {chapter.status === 'completed' && (
+              <TabBar tabs={DETAIL_TABS} activeTab={activeTab} onTabPress={setActiveTab} />
+            )}
+
+            {/* Description tab (always shown for non-completed; conditionally for completed) */}
+            {(chapter.status !== 'completed' || activeTab === 'description') && (
               <View style={styles.section}>
-                <View style={styles.divider} />
-                <Text style={styles.sectionTitle}>Summary</Text>
+                {chapter.status !== 'completed' && (
+                  <Text style={styles.sectionTitle}>Description</Text>
+                )}
+                <View style={styles.sectionCard}>
+                  <Text style={styles.sectionBody}>{chapter.description}</Text>
+                </View>
+              </View>
+            )}
+
+            {/* Summary tab — completed chapters only */}
+            {chapter.status === 'completed' && activeTab === 'summary' && (
+              <View style={styles.section}>
                 <View style={styles.sectionCard}>
                   <Text style={styles.sectionBody}>
-                    {chapter.summary?.trim() ? chapter.summary : 'No summary added yet.'}
+                    {chapter.summary?.trim() ? chapter.summary : 'No summary recorded yet.'}
                   </Text>
                 </View>
               </View>
@@ -184,17 +193,6 @@ export function ChapterDetailScreen({
                   <Button
                     title="Complete Chapter"
                     icon="check-circle-outline"
-                    fullWidth
-                    onPress={handleComplete}
-                  />
-                </View>
-              )}
-
-              {chapter.status === 'completed' && (
-                <View style={{ flex: 1 }}>
-                  <ButtonSecondary
-                    title="View Summary"
-                    icon="article"
                     fullWidth
                     onPress={handleComplete}
                   />

@@ -389,13 +389,23 @@ export class CampaignRepository {
       throw new Error('Chapter not found.');
     }
 
+    const parsed = this.parse(chapterSchema, value);
+
     const chapter = touchEntity({
-      ...this.parse(chapterSchema, value),
+      ...parsed,
       summary,
       status: 'completed' as const,
     });
 
     await this.worklet.put(dbKeys.chapter(chapter.id), chapter);
+
+    // Clear activeChapterId on the campaign so the chapter no longer
+    // appears as active after completion (mirrors deleteChapter logic)
+    const campaign = await this.getCampaign(parsed.campaignId);
+    if (campaign?.activeChapterId === chapterId) {
+      await this.updateCampaign({ ...campaign, activeChapterId: null });
+    }
+
     this.log('summarizeChapter:result', { chapterId: chapter.id, status: chapter.status });
     return chapter;
   }

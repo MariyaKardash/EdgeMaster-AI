@@ -4,3 +4,5 @@ export type ChapterDetailScreenProps = {
   onBack: () => void;
   onCompleteTapped: (chapterId: string) => void;
 };
+
+export type DetailTab = 'description' | 'summary';

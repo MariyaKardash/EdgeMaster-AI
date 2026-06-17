@@ -14,6 +14,7 @@ import {
   createP2pWorkletClient,
   type Campaign,
   type Chapter,
+  type GameEvent,
   type Session,
 } from '@/database';
 import type { P2pWorkletClient, P2pWorkletEvent } from '@/database/p2p/types';
@@ -54,6 +55,7 @@ type CampaignContextValue = {
   }) => Promise<Chapter>;
   activateChapter: (campaignId: string, chapterId: string) => Promise<Chapter>;
   deleteChapter: (campaignId: string, chapterId: string) => Promise<void>;
+  listGameEvents: (chapterId: string) => Promise<GameEvent[]>;
   summarizeChapter: (chapterId: string, summary: string) => Promise<Chapter>;
   startMasterSession: (campaignId: string, chapterId: string) => Promise<Session>;
   joinPlayerSession: (sessionCode: string, displayName?: string) => Promise<Session>;
@@ -266,8 +268,18 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
     [repository],
   );
 
+  const listGameEvents = useCallback(
+    (chapterId: string) => repository.listGameEvents(chapterId),
+    [repository],
+  );
+
   const summarizeChapter = useCallback(
-    (chapterId: string, summary: string) => repository.summarizeChapter(chapterId, summary),
+    async (chapterId: string, summary: string) => {
+      const result = await repository.summarizeChapter(chapterId, summary);
+      // Clear activeChapter from context state if it was the one just completed
+      setActiveChapter((prev) => (prev?.id === chapterId ? null : prev));
+      return result;
+    },
     [repository],
   );
 
@@ -364,6 +376,7 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       createChapter,
       activateChapter,
       deleteChapter,
+      listGameEvents,
       summarizeChapter,
       startMasterSession,
       joinPlayerSession,
@@ -394,6 +407,7 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       createChapter,
       activateChapter,
       deleteChapter,
+      listGameEvents,
       summarizeChapter,
       startMasterSession,
       joinPlayerSession,

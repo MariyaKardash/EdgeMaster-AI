@@ -3,11 +3,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUnistyles } from 'react-native-unistyles';
 
 import { Button } from '@/components/molecules/button';
+import { TabBar } from '@/components/molecules/tab-bar';
+import type { TabBarItem } from '@/components/molecules/tab-bar';
 import { Icon } from '@/components/atoms/icon';
 import { Text } from '@/components/atoms/text';
 import { DescriptionEditor } from '@/components/organisms/description-editor';
 import { useNewChapter } from '@/hooks/useNewChapter';
-
 import {
   DESCRIPTION_PLACEHOLDER,
   DESCRIPTION_PLACEHOLDER_DOC,
@@ -18,7 +19,12 @@ import {
   TITLE_PLACEHOLDER,
 } from './new-chapter.constants';
 import { styles } from './new-chapter.styles';
-import type { NewChapterScreenProps } from './new-chapter.types';
+import type { ChapterInputTab, NewChapterScreenProps } from './new-chapter.types';
+
+const TAB_ITEMS: TabBarItem<ChapterInputTab>[] = TABS.map((tab) => ({
+  key: tab,
+  label: TAB_LABELS[tab],
+}));
 
 export const NewChapterScreen = ({ campaignId, onBack, onSave }: NewChapterScreenProps) => {
   const insets = useSafeAreaInsets();
@@ -96,21 +102,7 @@ export const NewChapterScreen = ({ campaignId, onBack, onSave }: NewChapterScree
         />
 
         {/* Tab bar */}
-        <View style={styles.tabBar}>
-          {TABS.map((tab) => (
-            <Pressable
-              key={tab}
-              style={[styles.tabItem, activeTab === tab && styles.tabItemActive]}
-              onPress={() => setActiveTab(tab)}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: activeTab === tab }}
-            >
-              <Text style={[styles.tabLabel, activeTab === tab && styles.tabLabelActive]}>
-                {TAB_LABELS[tab]}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
+        <TabBar tabs={TAB_ITEMS} activeTab={activeTab} onTabPress={setActiveTab} />
 
         {/* Prompt tab — extra prompt input */}
         {activeTab === 'prompt' && (
