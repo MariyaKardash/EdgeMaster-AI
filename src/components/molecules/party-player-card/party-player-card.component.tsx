@@ -17,7 +17,12 @@ import type {
 
 const STAT_KEYS: (keyof PartyPlayerStats)[] = ['str', 'dex', 'int'];
 
-export const PartyPlayerCard = ({ player, onPlayerChange, onEquipHero }: PartyPlayerCardProps) => {
+export const PartyPlayerCard = ({
+  player,
+  onPlayerChange,
+  onEquipHero,
+  readOnly = false,
+}: PartyPlayerCardProps) => {
   const updatePlayer = (nextPlayer: PartyPlayer) => {
     onPlayerChange?.(nextPlayer);
   };
@@ -63,6 +68,7 @@ export const PartyPlayerCard = ({ player, onPlayerChange, onEquipHero }: PartyPl
           max={player.hp.max}
           onChange={handleHpChange}
           playerName={player.name}
+          readOnly={readOnly}
         />
 
         <View>
@@ -76,13 +82,19 @@ export const PartyPlayerCard = ({ player, onPlayerChange, onEquipHero }: PartyPl
               return (
                 <View key={label} style={styles.statCell}>
                   <Text style={styles.statLabel}>{label}</Text>
-                  <EditableNumberInput
-                    value={player.stats[statKey]}
-                    onCommit={(value) => handleStatCommit(statKey, value)}
-                    formatValue={formatStat}
-                    accessibilityLabel={`${player.name} ${label}`}
-                    style={styles.statInput}
-                  />
+                  {readOnly ? (
+                    <Text variant="headlineMd" style={styles.statInput}>
+                      {formatStat(player.stats[statKey])}
+                    </Text>
+                  ) : (
+                    <EditableNumberInput
+                      value={player.stats[statKey]}
+                      onCommit={(value) => handleStatCommit(statKey, value)}
+                      formatValue={formatStat}
+                      accessibilityLabel={`${player.name} ${label}`}
+                      style={styles.statInput}
+                    />
+                  )}
                 </View>
               );
             })}
@@ -99,15 +111,17 @@ export const PartyPlayerCard = ({ player, onPlayerChange, onEquipHero }: PartyPl
                 <View key={item.id} style={styles.equippedItem}>
                   <Icon name={item.icon} size={20} color="onSurfaceVariant" />
                   <Text style={styles.equippedItemName}>{item.name}</Text>
-                  <Pressable
-                    style={styles.removeItemButton}
-                    onPress={() => handleRemoveEquippedItem(item.id)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Remove ${item.name}`}
-                    hitSlop={8}
-                  >
-                    <Icon name="close" size={18} color="onSurfaceVariant" />
-                  </Pressable>
+                  {!readOnly ? (
+                    <Pressable
+                      style={styles.removeItemButton}
+                      onPress={() => handleRemoveEquippedItem(item.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove ${item.name}`}
+                      hitSlop={8}
+                    >
+                      <Icon name="close" size={18} color="onSurfaceVariant" />
+                    </Pressable>
+                  ) : null}
                 </View>
               ))}
             </View>
@@ -115,9 +129,11 @@ export const PartyPlayerCard = ({ player, onPlayerChange, onEquipHero }: PartyPl
         ) : null}
       </View>
 
-      <View style={styles.equipButtonWrapper}>
-        <Button title="Equip Hero" icon="build" fullWidth onPress={() => onEquipHero?.(player)} />
-      </View>
+      {!readOnly ? (
+        <View style={styles.equipButtonWrapper}>
+          <Button title="Equip Hero" icon="build" fullWidth onPress={() => onEquipHero?.(player)} />
+        </View>
+      ) : null}
     </View>
   );
 };

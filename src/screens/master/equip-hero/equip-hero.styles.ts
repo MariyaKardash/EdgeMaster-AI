@@ -114,6 +114,9 @@ export const styles = StyleSheet.create((theme) => ({
     color: theme.colors.onSurfaceVariant,
     fontSize: 13,
   },
+  inventoryListSection: {
+    gap: theme.spacing.md,
+  },
   filterRow: {
     flexDirection: 'row',
     gap: theme.spacing.sm,

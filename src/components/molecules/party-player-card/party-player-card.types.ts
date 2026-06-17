@@ -27,4 +27,5 @@ export type PartyPlayerCardProps = {
   player: PartyPlayer;
   onPlayerChange?: (player: PartyPlayer) => void;
   onEquipHero?: (player: PartyPlayer) => void;
+  readOnly?: boolean;
 };

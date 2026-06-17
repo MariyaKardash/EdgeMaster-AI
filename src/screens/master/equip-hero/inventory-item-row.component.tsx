@@ -9,14 +9,24 @@ import type { InventoryItem } from './equip-hero.types';
 type InventoryItemRowProps = {
   item: InventoryItem;
   isEquipped: boolean;
-  onEquip: (item: PartyEquippedItem) => void;
+  readOnly?: boolean;
+  onEquip?: (item: PartyEquippedItem) => void;
 };
 
-export const InventoryItemRow = ({ item, isEquipped, onEquip }: InventoryItemRowProps) => {
+export const InventoryItemRow = ({
+  item,
+  isEquipped,
+  readOnly = false,
+  onEquip,
+}: InventoryItemRowProps) => {
   const categoryLabel = item.category.charAt(0).toUpperCase() + item.category.slice(1);
 
   const handleEquip = () => {
-    onEquip({
+    if (readOnly) {
+      return;
+    }
+
+    onEquip?.({
       id: item.id,
       name: item.name,
       icon: item.icon,
@@ -26,14 +36,8 @@ export const InventoryItemRow = ({ item, isEquipped, onEquip }: InventoryItemRow
   const isEquippedState = isEquipped;
   styles.useVariants({ equipped: isEquippedState });
 
-  return (
-    <Pressable
-      style={({ pressed }) => [styles.itemCard, pressed && styles.itemCardPressed]}
-      onPress={handleEquip}
-      accessibilityRole="button"
-      accessibilityLabel={`${isEquippedState ? 'Unequip' : 'Equip'} ${item.name}`}
-      accessibilityState={{ selected: isEquippedState }}
-    >
+  const cardContent = (
+    <>
       <View style={styles.itemAccent} />
       <View style={styles.itemContent}>
         <View style={styles.itemIconBox}>
@@ -56,16 +60,43 @@ export const InventoryItemRow = ({ item, isEquipped, onEquip }: InventoryItemRow
         </View>
       </View>
 
-      <View style={styles.itemStatusChip}>
-        <Icon
-          name={isEquippedState ? 'check-circle' : 'touch-app'}
-          size={14}
-          color={isEquippedState ? 'onBackground' : 'onSurfaceVariant'}
-        />
-        <Text variant="labelMd" style={styles.itemStatusLabel}>
-          {isEquippedState ? 'Equipped' : 'Tap to equip'}
-        </Text>
-      </View>
+      {readOnly ? (
+        isEquippedState ? (
+          <View style={styles.itemStatusChip}>
+            <Icon name="check-circle" size={14} color="onBackground" />
+            <Text variant="labelMd" style={styles.itemStatusLabel}>
+              Equipped
+            </Text>
+          </View>
+        ) : null
+      ) : (
+        <View style={styles.itemStatusChip}>
+          <Icon
+            name={isEquippedState ? 'check-circle' : 'touch-app'}
+            size={14}
+            color={isEquippedState ? 'onBackground' : 'onSurfaceVariant'}
+          />
+          <Text variant="labelMd" style={styles.itemStatusLabel}>
+            {isEquippedState ? 'Equipped' : 'Tap to equip'}
+          </Text>
+        </View>
+      )}
+    </>
+  );
+
+  if (readOnly) {
+    return <View style={styles.itemCard}>{cardContent}</View>;
+  }
+
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.itemCard, pressed && styles.itemCardPressed]}
+      onPress={handleEquip}
+      accessibilityRole="button"
+      accessibilityLabel={`${isEquippedState ? 'Unequip' : 'Equip'} ${item.name}`}
+      accessibilityState={{ selected: isEquippedState }}
+    >
+      {cardContent}
     </Pressable>
   );
 };

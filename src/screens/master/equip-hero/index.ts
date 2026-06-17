@@ -1,6 +1,8 @@
 export { EquipHeroScreen } from './equip-hero.screen';
+export { HeroInventoryList } from './hero-inventory-list.component';
 export {
   EQUIP_HERO_SCREEN_TITLE,
+  INVENTORY_FILTERS,
   MOCK_INVENTORY_ITEMS,
   PLAYER_ARMOR_CLASS,
 } from './equip-hero.constants';

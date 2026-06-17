@@ -11,26 +11,10 @@ import {
 } from '@/components';
 import type { PartyEquippedItem } from '@/components/molecules/party-player-card';
 
-import {
-  EQUIP_HERO_SCREEN_TITLE,
-  INVENTORY_CATEGORY_LABELS,
-  INVENTORY_FILTERS,
-  MOCK_INVENTORY_ITEMS,
-} from './equip-hero.constants';
-import { InventoryItemRow } from './inventory-item-row.component';
+import { EQUIP_HERO_SCREEN_TITLE, MOCK_INVENTORY_ITEMS } from './equip-hero.constants';
+import { HeroInventoryList } from './hero-inventory-list.component';
 import { styles } from './equip-hero.styles';
-import type { EquipHeroScreenProps, InventoryCategory, InventoryFilter } from './equip-hero.types';
-
-const CATEGORY_ORDER: InventoryCategory[] = ['weapons', 'armor', 'utility'];
-
-const groupItemsByCategory = (items: EquipHeroScreenProps['inventoryItems']) => {
-  const inventoryItems = items ?? MOCK_INVENTORY_ITEMS;
-
-  return CATEGORY_ORDER.map((category) => ({
-    category,
-    items: inventoryItems.filter((item) => item.category === category),
-  })).filter((group) => group.items.length > 0);
-};
+import type { EquipHeroScreenProps } from './equip-hero.types';
 
 export const EquipHeroScreen = ({
   player: initialPlayer,
@@ -42,18 +26,8 @@ export const EquipHeroScreen = ({
   const bottomPadding = getSessionDashboardBottomNavHeight(insets.bottom) + 24;
 
   const [player, setPlayer] = useState(initialPlayer);
-  const [activeFilter, setActiveFilter] = useState<InventoryFilter>('all');
 
-  const equippedItemIds = new Set(player.equippedItems.map((item) => item.id));
-  const filteredGroups =
-    activeFilter === 'all'
-      ? groupItemsByCategory(inventoryItems)
-      : [
-          {
-            category: activeFilter,
-            items: inventoryItems.filter((item) => item.category === activeFilter),
-          },
-        ].filter((group) => group.items.length > 0);
+  const equippedItemIds = player.equippedItems.map((item) => item.id);
 
   const handleBack = () => {
     onBack?.(player);
@@ -127,57 +101,11 @@ export const EquipHeroScreen = ({
           </Text>
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filterRow}
-        >
-          {INVENTORY_FILTERS.map((filter) => {
-            const isActive = activeFilter === filter.id;
-
-            return (
-              <Pressable
-                key={filter.id}
-                style={({ pressed }) => [
-                  styles.filterChip,
-                  isActive && styles.filterChipActive,
-                  pressed && styles.filterChipPressed,
-                ]}
-                onPress={() => setActiveFilter(filter.id)}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isActive }}
-              >
-                <Text
-                  variant="labelMd"
-                  style={[styles.filterChipLabel, isActive && styles.filterChipLabelActive]}
-                >
-                  {filter.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-
-        {filteredGroups.map((group) => (
-          <View key={group.category} style={styles.categorySection}>
-            {activeFilter === 'all' ? (
-              <Text variant="labelMd" style={styles.categoryTitle}>
-                {INVENTORY_CATEGORY_LABELS[group.category]}
-              </Text>
-            ) : null}
-
-            <View style={styles.itemList}>
-              {group.items.map((item) => (
-                <InventoryItemRow
-                  key={item.id}
-                  item={item}
-                  isEquipped={equippedItemIds.has(item.id)}
-                  onEquip={handleEquipItem}
-                />
-              ))}
-            </View>
-          </View>
-        ))}
+        <HeroInventoryList
+          inventoryItems={inventoryItems}
+          equippedItemIds={equippedItemIds}
+          onEquip={handleEquipItem}
+        />
       </ScrollView>
 
       <SessionDashboardBottomNav activeTab="players" onTabPress={onTabPress} />
