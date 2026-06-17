@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, View } from 'react-native';
+import { Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
@@ -11,7 +11,11 @@ import {
   Text,
   TextField,
 } from '@/components';
-import { createEventLogEntry, MOCK_EVENT_LOG } from './live-control.constants';
+import {
+  createEventLogEntry,
+  MOCK_EVENT_LOG,
+  SUMMARIZE_END_CHAPTER_LABEL,
+} from './live-control.constants';
 import { styles } from './live-control.styles';
 import type { LiveControlScreenProps } from './live-control.types';
 
@@ -21,12 +25,15 @@ export const LiveControlScreen = ({
   chapterSubtitle = 'Chapter IV: The Whispering Reeds',
   logEntries: initialLogEntries = MOCK_EVENT_LOG,
   onExecuteEvent,
+  onSummarizeAndEndChapter,
   onTabPress,
 }: LiveControlScreenProps) => {
   const insets = useSafeAreaInsets();
   const [description, setDescription] = useState('');
   const [logEntries, setLogEntries] = useState(initialLogEntries);
-  const bottomPadding = getSessionDashboardBottomNavHeight(insets.bottom) + 24;
+  const floatingSummaryBottom = getSessionDashboardBottomNavHeight(insets.bottom) + 16;
+  const bottomPadding =
+    getSessionDashboardBottomNavHeight(insets.bottom) + (onSummarizeAndEndChapter ? 96 : 24);
 
   const handleExecuteEvent = () => {
     const message = description.trim();
@@ -117,6 +124,25 @@ export const LiveControlScreen = ({
           </View>
         </View>
       </ScrollView>
+
+      {onSummarizeAndEndChapter ? (
+        <View style={[styles.floatingSummaryContainer, { bottom: floatingSummaryBottom }]}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.floatingSummaryButton,
+              pressed && styles.floatingSummaryButtonPressed,
+            ]}
+            onPress={onSummarizeAndEndChapter}
+            accessibilityRole="button"
+            accessibilityLabel={SUMMARIZE_END_CHAPTER_LABEL}
+          >
+            <Icon name="logout" size={18} color="tertiary" />
+            <Text variant="bodyMd" style={styles.floatingSummaryLabel}>
+              {SUMMARIZE_END_CHAPTER_LABEL}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <SessionDashboardBottomNav onTabPress={onTabPress} />
     </View>

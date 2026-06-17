@@ -18,6 +18,8 @@ export const MOCK_EVENT_LOG: EventLogEntryData[] = [
   },
 ];
 
+export const SUMMARIZE_END_CHAPTER_LABEL = 'Summarize & End Chapter';
+
 export const formatEventLogTimestamp = (date: Date): string =>
   date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
 

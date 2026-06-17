@@ -88,4 +88,33 @@ export const styles = StyleSheet.create((theme) => ({
   logContainer: {
     gap: 0,
   },
+  floatingSummaryContainer: {
+    position: 'absolute',
+    left: theme.spacing.containerMargin,
+    right: theme.spacing.containerMargin,
+    zIndex: 12,
+  },
+  floatingSummaryButton: {
+    minHeight: 56,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    borderColor: withAlphaHex('tertiary', 0.5),
+    backgroundColor: withAlphaHex('surfaceContainerLow', 0.95),
+    paddingHorizontal: theme.spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+    shadowColor: theme.colors.tertiary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+  floatingSummaryButtonPressed: {
+    opacity: 0.78,
+  },
+  floatingSummaryLabel: {
+    color: theme.colors.tertiary,
+  },
 }));

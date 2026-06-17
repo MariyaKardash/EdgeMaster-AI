@@ -2,8 +2,7 @@ export type CampaignSessionInfo = {
   campaignId: string;
   name: string;
   lastPlayed: string;
-  lastPlayedAt: string;
-  sessionCode?: string;
+  topicHex?: string;
 };
 
 export type ContinueCampaignCardProps = {

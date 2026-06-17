@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Keyboard, Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -10,6 +11,7 @@ import {
   Text,
 } from '@/components';
 import type { PartyPlayer } from '@/components/molecules/party-player-card';
+import { consumeEquipHeroPlayerUpdate } from '@/screens/master/equip-hero';
 import { MOCK_PARTY_PLAYERS, PARTY_STATUS_SCREEN_TITLE } from './party-status.constants';
 import { styles } from './party-status.styles';
 import type { PartyStatusScreenProps } from './party-status.types';
@@ -33,6 +35,23 @@ export const PartyStatusScreen = ({
       return nextPlayers;
     });
   };
+
+  useFocusEffect(
+    useCallback(() => {
+      const updatedPlayer = consumeEquipHeroPlayerUpdate();
+      if (!updatedPlayer) {
+        return;
+      }
+
+      setPlayers((current) => {
+        const nextPlayers = current.map((player) =>
+          player.id === updatedPlayer.id ? updatedPlayer : player,
+        );
+        onPlayersChange?.(nextPlayers);
+        return nextPlayers;
+      });
+    }, [onPlayersChange]),
+  );
 
   return (
     <View style={styles.container}>

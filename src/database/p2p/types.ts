@@ -67,9 +67,9 @@ export type P2pWorkletCommand =
       type: 'start-swarm';
       role: 'host' | 'join';
       alias: string;
-      topicHex: string;
+      topicHex?: string;
       sessionCode?: string;
-      sessionId?: string;
+      campaignId?: string;
     }
   | { type: 'stop-swarm' };
 
@@ -92,9 +92,9 @@ export interface P2pWorkletClient {
   startSwarm(config: {
     role: 'host' | 'join';
     alias: string;
-    topicHex: string;
+    topicHex?: string;
     sessionCode?: string;
-    sessionId?: string;
+    campaignId?: string;
   }): Promise<void>;
   stopSwarm(): Promise<void>;
   dispose(): void;
@@ -105,5 +105,6 @@ export interface P2pWorkletClient {
     discoveryKey: string;
     writable: boolean;
   }>;
+  waitForPeer(timeoutMs?: number): Promise<{ peerId: string; connectionCount: number }>;
   waitForDbKey(key: string, timeoutMs?: number): Promise<P2pDbValue>;
 }

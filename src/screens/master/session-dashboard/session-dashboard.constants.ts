@@ -1,12 +1,18 @@
 import type { ConnectedPlayer } from '@/components/molecules/connected-player-avatar';
 
-export const MOCK_SESSION_ID = 'AX7K-9M2P';
+export const MOCK_SESSION_ID = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
 export const BRAND_TITLE = 'EdgeMaster';
 
 export const ACTIVE_CHAPTER_SECTION_TITLE = 'Active Chapter';
 
 export const CONNECTED_PLAYERS_SECTION_TITLE = 'Connected Players';
+
+export const START_SESSION_LABEL = 'Start Session';
+
+export const STARTING_SESSION_LABEL = 'Starting...';
+
+export const SESSION_ACTIVE_LABEL = 'Session Active';
 
 export const getActivePlayersLabel = (count: number) => `${count} Active`;
 

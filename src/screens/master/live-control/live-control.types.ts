@@ -6,5 +6,6 @@ export type LiveControlScreenProps = {
   chapterSubtitle?: string;
   logEntries?: EventLogEntryData[];
   onExecuteEvent?: (message: string) => void;
+  onSummarizeAndEndChapter?: () => void;
   onTabPress?: (tab: 'overview' | 'chapters' | 'players') => void;
 };

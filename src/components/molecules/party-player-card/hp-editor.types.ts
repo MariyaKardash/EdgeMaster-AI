@@ -3,4 +3,5 @@ export type HpEditorProps = {
   max: number;
   onChange: (hp: { current: number; max: number }) => void;
   playerName: string;
+  readOnly?: boolean;
 };

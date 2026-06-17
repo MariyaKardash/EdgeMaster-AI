@@ -8,7 +8,13 @@ import { clampHpCurrent, clampHpMax } from './party-player-card.utils';
 
 const getHpRatio = (current: number, max: number) => (max > 0 ? current / max : 0);
 
-export const HpEditor = ({ current, max, onChange, playerName }: HpEditorProps) => {
+export const HpEditor = ({
+  current,
+  max,
+  onChange,
+  playerName,
+  readOnly = false,
+}: HpEditorProps) => {
   const hpRatio = getHpRatio(current, max);
   const isLowHp = hpRatio < 0.5;
   const hpPercent = Math.round(hpRatio * 100);
@@ -26,6 +32,29 @@ export const HpEditor = ({ current, max, onChange, playerName }: HpEditorProps) 
   const adjustCurrent = (delta: number) => {
     updateHp(current + delta);
   };
+
+  if (readOnly) {
+    return (
+      <View style={styles.section}>
+        <View style={styles.block}>
+          <View style={styles.headerRow}>
+            <Text variant="labelMd" style={styles.label}>
+              HP
+            </Text>
+            <Text variant="codeMd" style={[styles.valueInput, styles.currentInput]}>
+              {current}/{max}
+            </Text>
+          </View>
+
+          <View style={styles.barTrack}>
+            <View
+              style={[styles.barFill, isLowHp && styles.barFillLow, { width: `${hpPercent}%` }]}
+            />
+          </View>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.section}>

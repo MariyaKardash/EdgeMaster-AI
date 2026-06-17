@@ -15,6 +15,8 @@ export const dbKeys = {
   metaCampaignList: () => '@meta/campaign-list',
   indexSessionByCode: (sessionCode: string) =>
     `@idx/session-code/${sessionCode.trim().toUpperCase()}`,
+  indexSessionByTopicHex: (topicHex: string) =>
+    `@idx/session-topic/${topicHex.trim().toLowerCase()}`,
   indexChaptersByCampaign: (campaignId: string) => `@idx/chapters/${campaignId}/`,
   indexPlayersBySession: (sessionId: string) => `@idx/players/${sessionId}/`,
   indexEventsByChapter: (chapterId: string) => `@idx/events/${chapterId}/`,

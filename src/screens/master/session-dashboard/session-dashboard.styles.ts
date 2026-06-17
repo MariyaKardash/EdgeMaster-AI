@@ -25,6 +25,16 @@ export const styles = StyleSheet.create((theme) => ({
   brandTitle: {
     color: theme.colors.primary,
   },
+  sessionHeader: {
+    borderBottomWidth: 1,
+    borderBottomColor: withAlphaHex('primary', 0.2),
+    backgroundColor: withAlphaHex('surfaceContainer', 0.95),
+  },
+  startSessionButton: {
+    paddingHorizontal: theme.spacing.gutter,
+    paddingTop: theme.spacing.sm,
+    paddingBottom: theme.spacing.md,
+  },
   scroll: {
     flex: 1,
   },

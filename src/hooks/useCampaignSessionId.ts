@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
 import { useLocalSearchParams } from 'expo-router';
 
-import { sessionIdFromCampaignId } from '@/database';
 import { useCampaign } from '@/contexts/campaign-context';
+import { campaignTopicHex } from '@/lib/holepunch/sessionTopicHex';
 
 export function useCampaignId(explicitCampaignId?: string) {
   const { activeCampaign } = useCampaign();
@@ -15,11 +15,11 @@ export function useCampaignId(explicitCampaignId?: string) {
   );
 }
 
-export function useCampaignSessionId(explicitCampaignId?: string) {
+export function useCampaignTopicHex(explicitCampaignId?: string) {
   const campaignId = useCampaignId(explicitCampaignId);
 
-  return useMemo(
-    () => (campaignId ? sessionIdFromCampaignId(campaignId) : undefined),
-    [campaignId],
-  );
+  return useMemo(() => (campaignId ? campaignTopicHex(campaignId) : undefined), [campaignId]);
 }
+
+/** @deprecated Use useCampaignTopicHex instead. */
+export const useCampaignSessionId = useCampaignTopicHex;

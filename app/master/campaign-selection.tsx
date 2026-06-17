@@ -2,22 +2,7 @@ import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Alert } from 'react-native';
 
-import {
-  campaignSchema,
-  chapterSchema,
-  createEntity,
-  dbKeys,
-  dbPrefixEnd,
-  generateSessionCode,
-  sessionSchema,
-  touchEntity,
-  type Campaign,
-  type Chapter,
-  type Session,
-} from '@/database';
 import { useCampaign } from '@/contexts/campaign-context';
-import { defaultAlias } from '@/lib/holepunch/defaultAlias';
-import { sessionTopicHex } from '@/lib/holepunch/sessionTopicHex';
 import { CampaignSelectionScreen } from '@/screens/master/campaign-selection';
 import type { CampaignSessionInfo } from '@/screens/master/campaign-selection';
 import { campaignSetupStore } from '@/stores/campaign-setup-store';
@@ -33,22 +18,7 @@ const formatLastPlayed = (isoDate: string) => {
 
 const CampaignSelectionRoute = () => {
   const router = useRouter();
-  const {
-    ready,
-    campaignsLoading,
-    error,
-    campaigns,
-    activeSession,
-    worklet,
-    setError,
-    setActiveCampaign,
-    setActiveChapter,
-    setActiveSession,
-    setConnectionState,
-    setCampaigns,
-    openCampaign,
-    runWithoutCampaignRefresh,
-  } = useCampaign();
+  const { ready, campaignsLoading, error, campaigns, activeSession, openCampaign } = useCampaign();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const campaignCards: CampaignSessionInfo[] = [...campaigns]
@@ -59,8 +29,7 @@ const CampaignSelectionRoute = () => {
         campaignId: campaign.id,
         name: campaign.name,
         lastPlayed: formatLastPlayed(campaign.updatedAt),
-        lastPlayedAt: campaign.updatedAt,
-        sessionCode: isActiveCampaign ? activeSession.sessionCode : undefined,
+        topicHex: isActiveCampaign ? activeSession.topicHex : undefined,
       };
     });
 

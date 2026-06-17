@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   ActiveChapterCard,
+  Button,
   ConnectedPlayerAvatar,
   Icon,
   SessionDashboardBottomNav,
@@ -14,21 +15,26 @@ import {
   BRAND_TITLE,
   CONNECTED_PLAYERS_SECTION_TITLE,
   getActivePlayersLabel,
-  MOCK_CONNECTED_PLAYERS,
-  MOCK_SESSION_ID,
   NO_ACTIVE_CHAPTER_DESCRIPTION,
   NO_ACTIVE_CHAPTER_TITLE,
+  START_SESSION_LABEL,
+  STARTING_SESSION_LABEL,
+  SESSION_ACTIVE_LABEL,
 } from './session-dashboard.constants';
 import { styles } from './session-dashboard.styles';
 import type { SessionDashboardScreenProps } from './session-dashboard.types';
 
 export const SessionDashboardScreen = ({
   campaignName,
-  sessionId = MOCK_SESSION_ID,
+  sessionId,
+  isSessionActive = false,
+  isSessionConnecting = false,
+  isStartingSession = false,
   activeChapterTitle,
   activeChapterDescription,
   activeChapterImageUri,
-  connectedPlayers = MOCK_CONNECTED_PLAYERS,
+  connectedPlayers = [],
+  onStartSession,
   onOpenChapter,
   onPlayerPress,
   onTabPress,
@@ -37,6 +43,13 @@ export const SessionDashboardScreen = ({
   const chapterDescription = activeChapterDescription ?? NO_ACTIVE_CHAPTER_DESCRIPTION;
   const hasActiveChapter = Boolean(activeChapterTitle);
   const insets = useSafeAreaInsets();
+  const isStartDisabled = isStartingSession || isSessionConnecting || isSessionActive;
+  const startSessionLabel =
+    isStartingSession || isSessionConnecting
+      ? STARTING_SESSION_LABEL
+      : isSessionActive
+        ? SESSION_ACTIVE_LABEL
+        : START_SESSION_LABEL;
 
   return (
     <View style={styles.container}>
@@ -50,7 +63,20 @@ export const SessionDashboardScreen = ({
           </View>
         </View>
 
-        <SessionIdBar sessionId={sessionId} />
+        <View style={styles.sessionHeader}>
+          {sessionId ? <SessionIdBar sessionId={sessionId} /> : null}
+          {onStartSession ? (
+            <View style={styles.startSessionButton}>
+              <Button
+                title={startSessionLabel}
+                icon={isSessionActive ? 'check-circle' : 'play-arrow'}
+                fullWidth
+                disabled={isStartDisabled}
+                onPress={onStartSession}
+              />
+            </View>
+          ) : null}
+        </View>
       </View>
 
       <ScrollView

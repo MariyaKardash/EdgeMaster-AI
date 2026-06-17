@@ -23,10 +23,16 @@ import {
   type Session,
   type StatsHistoryEntry,
 } from '../entities';
-import { createEntity, generateSessionCode, normalizeStoredCampaign, touchEntity } from '../utils';
+import {
+  createEntity,
+  normalizeStoredCampaign,
+  sessionIdFromCampaignId,
+  touchEntity,
+} from '../utils';
 import type { P2pWorkletClient } from './types';
 import { logHolepunch } from '@/lib/holepunch/logHolepunch';
-import { sessionTopicHex } from '@/lib/holepunch/sessionTopicHex';
+import { campaignTopicHex } from '@/lib/holepunch/sessionTopicHex';
+import { normalizeTopicHex } from '@/lib/holepunch/topicHex';
 
 type CampaignSummary = {
   campaign: Campaign;
@@ -43,6 +49,11 @@ export class CampaignRepository {
 
   private parse<T>(schema: { parse: (value: unknown) => T }, value: unknown) {
     return schema.parse(value);
+  }
+
+  private async indexSession(session: Session) {
+    await this.worklet.put(dbKeys.indexSessionByCode(session.sessionCode), session.id);
+    await this.worklet.put(dbKeys.indexSessionByTopicHex(session.topicHex), session.id);
   }
 
   private async readLocalCampaignIds() {
@@ -301,17 +312,17 @@ export class CampaignRepository {
       }
     }
 
-    const sessionCode = generateSessionCode();
+    const sessionCode = sessionIdFromCampaignId(campaignId);
     const session = createEntity<Session>({
       campaignId,
       chapterId,
       sessionCode,
-      topicHex: sessionTopicHex(sessionCode),
+      topicHex: campaignTopicHex(campaignId),
       status: 'active',
     });
 
     await this.worklet.put(dbKeys.session(session.id), session);
-    await this.worklet.put(dbKeys.indexSessionByCode(sessionCode), session.id);
+    await this.indexSession(session);
 
     this.log('createSession:result', {
       sessionId: session.id,
@@ -319,6 +330,37 @@ export class CampaignRepository {
       topicHex: session.topicHex,
     });
 
+    return session;
+  }
+
+  async getSessionByTopicHex(topicHex: string, options?: { wait?: boolean }) {
+    const normalizedTopicHex = normalizeTopicHex(topicHex);
+    this.log('getSessionByTopicHex', {
+      topicHex: normalizedTopicHex,
+      wait: options?.wait ?? false,
+    });
+    const indexKey = dbKeys.indexSessionByTopicHex(normalizedTopicHex);
+
+    const sessionId = options?.wait
+      ? await this.worklet.waitForDbKey(indexKey)
+      : await this.worklet.get<string>(indexKey);
+
+    if (!sessionId || typeof sessionId !== 'string') {
+      this.log('getSessionByTopicHex:result', { topicHex: normalizedTopicHex, found: false });
+      return null;
+    }
+
+    const sessionKey = dbKeys.session(sessionId);
+    const value = options?.wait
+      ? await this.worklet.waitForDbKey(sessionKey)
+      : await this.worklet.get<Session>(sessionKey);
+
+    const session = value && typeof value === 'object' ? this.parse(sessionSchema, value) : null;
+    this.log('getSessionByTopicHex:result', {
+      topicHex: normalizedTopicHex,
+      found: Boolean(session),
+      sessionId: session?.id,
+    });
     return session;
   }
 
