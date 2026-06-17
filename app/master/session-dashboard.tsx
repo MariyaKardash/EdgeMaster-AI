@@ -215,47 +215,6 @@ const SessionDashboardRoute = () => {
         const campaign = campaignSchema.parse(normalizeStoredCampaign(campaignValue));
         setActiveCampaign(campaign);
 
-        // --- 2. Ensure active chapter ---
-        let chapter: Chapter | null = null;
-
-        if (campaign.activeChapterId) {
-          const chapterValue = await worklet.get<Chapter>(dbKeys.chapter(campaign.activeChapterId));
-
-          if (chapterValue) {
-            chapter = chapterSchema.parse(chapterValue);
-          }
-        }
-
-        if (!chapter) {
-          chapter = createEntity<Chapter>({
-            campaignId,
-            title: 'Chapter 1',
-            description: 'The journey begins.',
-            order: 0,
-            status: 'active',
-            generationSource: { type: 'manual' },
-          });
-
-          // Save the first chapter record.
-          await worklet.put(dbKeys.chapter(chapter.id), chapter);
-          // Index the chapter under this campaign so it can be listed by order.
-          await worklet.put(
-            `${dbKeys.indexChaptersByCampaign(campaignId)}${chapter.order}`,
-            chapter.id,
-          );
-
-          const campaignNext = touchEntity({
-            ...campaign,
-            activeChapterId: chapter.id,
-          });
-
-          // Mark this chapter as the active chapter for the campaign.
-          await worklet.put(dbKeys.campaign(campaignNext.id), campaignNext);
-          setActiveCampaign(campaignNext);
-        }
-
-        setActiveChapter(chapter);
-
         // --- 3. Reuse active session or create one ---
         const sessionEntries = await worklet.list<Session>(
           dbKeys.session(''),
@@ -303,7 +262,6 @@ const SessionDashboardRoute = () => {
 
           session = createEntity<Session>({
             campaignId,
-            chapterId: chapter.id,
             sessionCode: nextSessionCode,
             topicHex: campaignTopicHex(campaignId),
             status: 'active',

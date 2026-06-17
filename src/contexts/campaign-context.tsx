@@ -56,7 +56,7 @@ type CampaignContextValue = {
   deleteChapter: (campaignId: string, chapterId: string) => Promise<void>;
   listGameEvents: (chapterId: string) => Promise<GameEvent[]>;
   summarizeChapter: (chapterId: string, summary: string) => Promise<Chapter>;
-  startMasterSession: (campaignId: string, chapterId: string) => Promise<Session>;
+  startMasterSession: (campaignId: string) => Promise<Session>;
   joinPlayerSession: (topicHex: string, displayName?: string) => Promise<Session>;
   stopSession: () => Promise<void>;
 };
@@ -290,12 +290,12 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const startMasterSession = useCallback(
-    async (campaignId: string, chapterId: string) => {
+    async (campaignId: string) => {
       setError(null);
       setConnectionState('connecting');
 
       await repository.openCampaign(campaignId);
-      const session = await repository.createSession(campaignId, chapterId);
+      const session = await repository.createSession(campaignId);
 
       await worklet.startSwarm({
         role: 'host',

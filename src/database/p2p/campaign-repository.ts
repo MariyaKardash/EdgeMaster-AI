@@ -302,8 +302,8 @@ export class CampaignRepository {
     return result;
   }
 
-  async createSession(campaignId: string, chapterId: string) {
-    this.log('createSession', { campaignId, chapterId });
+  async createSession(campaignId: string) {
+    this.log('createSession', { campaignId });
     const existingSessions = await this.listSessions(campaignId);
 
     for (const existingSession of existingSessions) {
@@ -315,7 +315,6 @@ export class CampaignRepository {
     const sessionCode = sessionIdFromCampaignId(campaignId);
     const session = createEntity<Session>({
       campaignId,
-      chapterId,
       sessionCode,
       topicHex: campaignTopicHex(campaignId),
       status: 'active',
