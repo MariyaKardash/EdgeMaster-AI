@@ -14,7 +14,6 @@ import {
   SUPPORTED_MIME_TYPES,
 } from '@/screens/master/new-chapter/new-chapter.constants';
 import {
-  buildChapterEntity,
   buildGenerationSource,
   isSupportedExtension,
 } from '@/screens/master/new-chapter/new-chapter.utils';
@@ -50,7 +49,8 @@ export type UseNewChapterResult = {
 
   handleFix: () => Promise<void>;
   handleGenerate: () => Promise<void>;
-  handleSave: () => void;
+  handleSave: () => Promise<void>;
+  isSaving: boolean;
 
   errorMessage: string | null;
   clearError: () => void;
@@ -60,7 +60,7 @@ export type UseNewChapterResult = {
 
 export function useNewChapter({ campaignId }: UseNewChapterParams): UseNewChapterResult {
   const llm = useLLMModel();
-  const { listChapters } = useCampaign();
+  const { listChapters, createChapter } = useCampaign();
 
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
@@ -75,6 +75,7 @@ export function useNewChapter({ campaignId }: UseNewChapterParams): UseNewChapte
   const [docState, setDocState] = useState<DocState>('idle');
   const [isFixing, setIsFixing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const handleDescriptionChange = useCallback((v: string) => {
     setDescription(v);
@@ -191,19 +192,29 @@ export function useNewChapter({ campaignId }: UseNewChapterParams): UseNewChapte
     }
   }, []);
 
-  const handleSave = useCallback(() => {
-    const generationSource = buildGenerationSource(activeTab, promptText);
-    const chapter = buildChapterEntity({
-      campaignId,
-      title: title.trim(),
-      description: description.trim(),
-      generationSource,
-    });
-
-    // TODO: Persist chapter to game state DB
-    // TODO: Build CampaignDoc and call useCampaignRAG.addChapterDescription()
-    console.log('[NewChapter] Save chapter:', chapter);
-  }, [activeTab, campaignId, description, promptText, title]);
+  const handleSave = useCallback(async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    setErrorMessage(null);
+    try {
+      const existingChapters = await listChapters(campaignId).catch(() => []);
+      const order = existingChapters.length;
+      const generationSource = buildGenerationSource(activeTab);
+      await createChapter({
+        campaignId,
+        title: title.trim(),
+        description: description.trim(),
+        order,
+        generationSource,
+      });
+    } catch (e) {
+      console.error('[useNewChapter] handleSave failed:', e);
+      setErrorMessage(e instanceof Error ? e.message : 'Failed to save chapter.');
+      setIsSaving(false);
+      return;
+    }
+    setIsSaving(false);
+  }, [isSaving, listChapters, campaignId, activeTab, createChapter, title, description]);
 
   return {
     title,
@@ -230,10 +241,11 @@ export function useNewChapter({ campaignId }: UseNewChapterParams): UseNewChapte
     handleFix,
     handleGenerate,
     handleSave,
+    isSaving,
 
     errorMessage,
     clearError: () => setErrorMessage(null),
 
-    canSave: title.trim().length > 0 && description.trim().length > 0,
+    canSave: title.trim().length > 0 && description.trim().length > 0 && !isSaving,
   };
 }

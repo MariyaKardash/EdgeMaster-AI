@@ -45,12 +45,13 @@ export const NewChapterScreen = ({ campaignId, onBack, onSave }: NewChapterScree
     handleFix,
     handleGenerate,
     handleSave,
+    isSaving,
     errorMessage,
     canSave,
   } = useNewChapter({ campaignId });
 
-  const onSavePress = () => {
-    handleSave();
+  const onSavePress = async () => {
+    await handleSave();
     onSave();
   };
 
@@ -208,7 +209,12 @@ export const NewChapterScreen = ({ campaignId, onBack, onSave }: NewChapterScree
           </View>
         ) : null}
 
-        <Button title="Save Chapter" fullWidth disabled={!canSave} onPress={onSavePress} />
+        <Button
+          title={isSaving ? 'Saving…' : 'Save Chapter'}
+          fullWidth
+          disabled={!canSave}
+          onPress={onSavePress}
+        />
       </View>
     </View>
   );

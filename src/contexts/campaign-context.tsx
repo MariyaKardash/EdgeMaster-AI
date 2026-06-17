@@ -44,6 +44,17 @@ type CampaignContextValue = {
   setCampaigns: (campaigns: Campaign[]) => void;
   openCampaign: (campaignId: string) => Promise<{ campaign: Campaign; chapter: Chapter | null }>;
   listChapters: (campaignId: string) => Promise<Chapter[]>;
+  getChapter: (chapterId: string) => Promise<Chapter | null>;
+  createChapter: (input: {
+    campaignId: string;
+    title: string;
+    description: string;
+    order: number;
+    generationSource?: Chapter['generationSource'];
+  }) => Promise<Chapter>;
+  activateChapter: (campaignId: string, chapterId: string) => Promise<Chapter>;
+  deleteChapter: (campaignId: string, chapterId: string) => Promise<void>;
+  summarizeChapter: (chapterId: string, summary: string) => Promise<Chapter>;
   startMasterSession: (campaignId: string, chapterId: string) => Promise<Session>;
   joinPlayerSession: (sessionCode: string, displayName?: string) => Promise<Session>;
   stopSession: () => Promise<void>;
@@ -225,6 +236,41 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
     [repository],
   );
 
+  const getChapter = useCallback(
+    (chapterId: string) => repository.getChapter(chapterId),
+    [repository],
+  );
+
+  const createChapter = useCallback(
+    (input: {
+      campaignId: string;
+      title: string;
+      description: string;
+      order: number;
+      generationSource?: Chapter['generationSource'];
+    }) => repository.createChapter(input),
+    [repository],
+  );
+
+  const activateChapter = useCallback(
+    async (campaignId: string, chapterId: string) => {
+      const result = await repository.activateChapter(campaignId, chapterId);
+      setActiveChapter(result.chapter);
+      return result.chapter;
+    },
+    [repository, setActiveChapter],
+  );
+
+  const deleteChapter = useCallback(
+    (campaignId: string, chapterId: string) => repository.deleteChapter(campaignId, chapterId),
+    [repository],
+  );
+
+  const summarizeChapter = useCallback(
+    (chapterId: string, summary: string) => repository.summarizeChapter(chapterId, summary),
+    [repository],
+  );
+
   const startMasterSession = useCallback(
     async (campaignId: string, chapterId: string) => {
       setError(null);
@@ -314,6 +360,11 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       setCampaigns,
       openCampaign,
       listChapters,
+      getChapter,
+      createChapter,
+      activateChapter,
+      deleteChapter,
+      summarizeChapter,
       startMasterSession,
       joinPlayerSession,
       stopSession,
@@ -339,6 +390,11 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       setCampaigns,
       openCampaign,
       listChapters,
+      getChapter,
+      createChapter,
+      activateChapter,
+      deleteChapter,
+      summarizeChapter,
       startMasterSession,
       joinPlayerSession,
       stopSession,

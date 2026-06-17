@@ -218,6 +218,34 @@ export class CampaignRepository {
     return chapters;
   }
 
+  async getChapter(chapterId: string) {
+    this.log('getChapter', { chapterId });
+    const value = await this.worklet.get<Chapter>(dbKeys.chapter(chapterId));
+    const chapter = value ? this.parse(chapterSchema, value) : null;
+    this.log('getChapter:result', { chapterId, found: Boolean(chapter) });
+    return chapter;
+  }
+
+  async deleteChapter(campaignId: string, chapterId: string) {
+    this.log('deleteChapter', { campaignId, chapterId });
+    const chapter = await this.getChapter(chapterId);
+
+    if (!chapter) {
+      throw new Error('Chapter not found.');
+    }
+
+    await this.worklet.del(dbKeys.chapter(chapterId));
+    await this.worklet.del(`${dbKeys.indexChaptersByCampaign(campaignId)}${chapter.order}`);
+
+    const campaign = await this.getCampaign(campaignId);
+
+    if (campaign?.activeChapterId === chapterId) {
+      await this.updateCampaign({ ...campaign, activeChapterId: null });
+    }
+
+    this.log('deleteChapter:result', { chapterId });
+  }
+
   async activateChapter(campaignId: string, chapterId: string) {
     this.log('activateChapter', { campaignId, chapterId });
     const campaign = await this.getCampaign(campaignId);
@@ -227,19 +255,22 @@ export class CampaignRepository {
     }
 
     const chapters = await this.listChapters(campaignId);
-    const updatedChapters = await Promise.all(
-      chapters.map(async (chapter) => {
-        const nextStatus: Chapter['status'] =
-          chapter.id === chapterId
-            ? 'active'
-            : chapter.status === 'active'
-              ? 'completed'
-              : chapter.status;
-        const next = touchEntity({ ...chapter, status: nextStatus });
-        await this.worklet.put(dbKeys.chapter(next.id), next);
-        return next;
-      }),
-    );
+    const activeChapter = chapters.find((c) => c.status === 'active');
+
+    if (activeChapter && activeChapter.id !== chapterId) {
+      throw new Error(
+        `"${activeChapter.title}" is still active. Complete it before starting a new chapter.`,
+      );
+    }
+
+    const target = chapters.find((c) => c.id === chapterId);
+
+    if (!target) {
+      throw new Error('Chapter not found.');
+    }
+
+    const next = touchEntity({ ...target, status: 'active' as const });
+    await this.worklet.put(dbKeys.chapter(next.id), next);
 
     const campaignNext = await this.updateCampaign({
       ...campaign,
@@ -248,7 +279,7 @@ export class CampaignRepository {
 
     const result = {
       campaign: campaignNext,
-      chapters: updatedChapters,
+      chapter: next,
     };
 
     this.log('activateChapter:result', {
