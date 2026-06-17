@@ -27,6 +27,7 @@ export const CampaignSelectionScreen = ({
 
         <View style={styles.cards}>
           <NewCampaignCard onPress={() => onStartNew?.()} disabled={isLoading} />
+
           {error ? (
             <Text variant="bodyMd" style={styles.errorText}>
               {error}
@@ -42,13 +43,23 @@ export const CampaignSelectionScreen = ({
               Initializing storage...
             </Text>
           ) : null}
-          {campaigns?.map((campaign) => (
-            <ContinueCampaignCard
-              key={campaign.campaignId}
-              session={campaign}
-              onPress={() => onContinue?.(campaign)}
-            />
-          ))}
+
+          {campaigns && campaigns.length > 0 ? (
+            <>
+              <Text variant="headlineMd" style={styles.sectionHeader}>
+                Continue Campaign
+              </Text>
+              <View style={styles.campaignList}>
+                {campaigns.map((campaign) => (
+                  <ContinueCampaignCard
+                    key={campaign.campaignId}
+                    session={campaign}
+                    onPress={() => onContinue?.(campaign)}
+                  />
+                ))}
+              </View>
+            </>
+          ) : null}
         </View>
       </ScrollView>
 

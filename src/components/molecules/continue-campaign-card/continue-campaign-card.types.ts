@@ -1,8 +1,8 @@
 export type CampaignSessionInfo = {
   campaignId: string;
   name: string;
-  sessionNumber: number;
   lastPlayed: string;
+  lastPlayedAt: string;
   sessionCode?: string;
 };
 

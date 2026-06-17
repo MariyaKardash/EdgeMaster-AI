@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useCallback, useState } from 'react';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { useCampaign } from '@/contexts/campaign-context';
 import { MOCK_CAMPAIGN } from '@/data/mock-campaign';
@@ -19,37 +19,35 @@ const ChaptersListRoute = () => {
   const { listChapters } = useCampaign();
   const [chapters, setChapters] = useState<ChapterListItem[]>([]);
 
-  useEffect(() => {
-    let cancelled = false;
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
 
-    listChapters(resolvedCampaignId)
-      .then((result) => {
-        if (cancelled) return;
-        if (result.length === 0) {
-          setChapters([]);
-          return;
-        }
-        setChapters(
-          result.map((c) => ({
-            id: c.id,
-            title: c.title,
-            description: c.description,
-            status: c.status,
-            dateLabel: new Date(c.createdAt).toLocaleDateString(undefined, {
-              day: 'numeric',
-              month: 'short',
-            }),
-          })),
-        );
-      })
-      .catch(() => {
-        if (!cancelled) setChapters(undefined);
-      });
+      listChapters(resolvedCampaignId)
+        .then((result) => {
+          if (cancelled) return;
+          setChapters(
+            result.map((c) => ({
+              id: c.id,
+              title: c.title,
+              description: c.description,
+              status: c.status,
+              dateLabel: new Date(c.createdAt).toLocaleDateString(undefined, {
+                day: 'numeric',
+                month: 'short',
+              }),
+            })),
+          );
+        })
+        .catch(() => {
+          if (!cancelled) setChapters([]);
+        });
 
-    return () => {
-      cancelled = true;
-    };
-  }, [resolvedCampaignId, listChapters]);
+      return () => {
+        cancelled = true;
+      };
+    }, [resolvedCampaignId, listChapters]),
+  );
 
   return (
     <ChaptersListScreen
