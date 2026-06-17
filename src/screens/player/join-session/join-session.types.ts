@@ -1,5 +1,5 @@
 export type JoinSessionConnectPayload = {
-  sessionCode: string;
+  topicHex: string;
 };
 
 export type JoinSessionScreenProps = {

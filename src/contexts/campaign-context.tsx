@@ -19,7 +19,6 @@ import {
 import type { P2pWorkletClient, P2pWorkletEvent } from '@/database/p2p/types';
 import { getP2pStoragePath } from '@/database/p2p/storage-path';
 import { defaultAlias } from '@/lib/holepunch/defaultAlias';
-import { sessionTopicHex } from '@/lib/holepunch/sessionTopicHex';
 
 type ConnectionState = 'idle' | 'connecting' | 'connected' | 'error';
 
@@ -45,7 +44,7 @@ type CampaignContextValue = {
   openCampaign: (campaignId: string) => Promise<{ campaign: Campaign; chapter: Chapter | null }>;
   listChapters: (campaignId: string) => Promise<Chapter[]>;
   startMasterSession: (campaignId: string, chapterId: string) => Promise<Session>;
-  joinPlayerSession: (sessionCode: string, displayName?: string) => Promise<Session>;
+  joinPlayerSession: (topicHex: string, displayName?: string) => Promise<Session>;
   stopSession: () => Promise<void>;
 };
 
@@ -76,6 +75,7 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
   const activeCampaignIdRef = useRef<string | null>(null);
   const refreshInFlightRef = useRef<Promise<void> | null>(null);
   const suspendRefreshRef = useRef(false);
+  const sessionActiveRef = useRef(false);
 
   const setActiveCampaignState = useCallback((campaign: Campaign | null) => {
     activeCampaignIdRef.current = campaign?.id ?? null;
@@ -173,10 +173,12 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       }
 
       if (event.type === 'ready') {
+        sessionActiveRef.current = true;
         setConnectionState('connected');
       }
 
       if (event.type === 'stopped') {
+        sessionActiveRef.current = false;
         setConnectionState('idle');
         setConnectedPeers(0);
       }
@@ -186,7 +188,11 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
         setConnectionState('error');
       }
 
-      if ((event.type === 'db-put' || event.type === 'db-del') && !suspendRefreshRef.current) {
+      if (
+        (event.type === 'db-put' || event.type === 'db-del') &&
+        !suspendRefreshRef.current &&
+        !sessionActiveRef.current
+      ) {
         void refreshCampaignsRef.current();
       }
     });
@@ -236,9 +242,6 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       await worklet.startSwarm({
         role: 'host',
         alias: defaultAlias(),
-        topicHex: session.topicHex,
-        sessionCode: session.sessionCode,
-        sessionId: session.id,
       });
 
       setActiveSession(session);
@@ -248,35 +251,51 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const joinPlayerSession = useCallback(
-    async (sessionCode: string, displayName = defaultAlias()) => {
+    async (topicHex: string, displayName = defaultAlias()) => {
       setError(null);
       setConnectionState('connecting');
 
-      await worklet.startSwarm({
-        role: 'join',
-        alias: displayName,
-        topicHex: sessionTopicHex(sessionCode),
-        sessionCode,
-      });
+      try {
+        const campaignOpened = worklet.waitForCampaignOpened();
+        const peerConnected = worklet.waitForPeer();
 
-      await worklet.waitForCampaignOpened();
+        await worklet.startSwarm({
+          role: 'join',
+          alias: displayName,
+          topicHex,
+        });
 
-      const session = await repository.getSessionByCode(sessionCode, { wait: true });
+        await peerConnected;
+        await campaignOpened;
 
-      if (!session) {
-        throw new Error('Session not found. Check the code and try again.');
+        const session = await repository.getSessionByTopicHex(topicHex, { wait: true });
+
+        if (!session) {
+          throw new Error('Session not found. Check the topic hex and try again.');
+        }
+
+        await repository.registerPlayer(session.id, displayName);
+
+        const campaign = await repository.getCampaign(session.campaignId);
+        const chapter = await repository.getActiveChapter(session.campaignId);
+
+        setActiveSession(session);
+        setActiveCampaignState(campaign);
+        setActiveChapter(chapter);
+
+        return session;
+      } catch (joinError) {
+        sessionActiveRef.current = false;
+
+        try {
+          await worklet.stopSwarm();
+        } catch {
+          // Ignore cleanup errors so the original join failure is surfaced.
+        }
+
+        setConnectionState('error');
+        throw joinError;
       }
-
-      await repository.registerPlayer(session.id, displayName);
-
-      const campaign = await repository.getCampaign(session.campaignId);
-      const chapter = await repository.getActiveChapter(session.campaignId);
-
-      setActiveSession(session);
-      setActiveCampaignState(campaign);
-      setActiveChapter(chapter);
-
-      return session;
     },
     [repository, worklet, setActiveCampaignState],
   );
@@ -287,6 +306,7 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
     }
 
     await worklet.stopSwarm();
+    sessionActiveRef.current = false;
     setConnectionState('idle');
     setConnectedPeers(0);
     setActiveSession(null);

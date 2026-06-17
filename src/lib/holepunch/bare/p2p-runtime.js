@@ -6,14 +6,13 @@ const b4a = require('b4a');
 const { IPC } = BareKit;
 
 const LOCAL_STORE_NAME = 'local-index';
+const SESSION_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 let store = null;
 let localBee = null;
 let campaignCore = null;
 let campaignBee = null;
 let activeCampaignId = null;
-let activeSessionCode = null;
-let activeSessionId = null;
 let swarm = null;
 let discovery = null;
 let campaignDiscovery = null;
@@ -113,6 +112,66 @@ function normalizeStoragePath(storagePath) {
   return String(storagePath || '')
     .trim()
     .replace(/^file:\/\//, '');
+}
+
+function sessionIdSegment(hex, offset, length) {
+  return Array.from({ length }, (_, index) => {
+    const byte = Number.parseInt(hex.slice((offset + index) * 2, (offset + index) * 2 + 2), 16);
+    return SESSION_CODE_ALPHABET[byte % SESSION_CODE_ALPHABET.length];
+  }).join('');
+}
+
+function sessionIdFromCampaignId(campaignId) {
+  const hex = String(campaignId).replace(/-/g, '').toLowerCase();
+
+  if (!/^[0-9a-f]{32}$/.test(hex)) {
+    throw new Error('Campaign id must be a UUID.');
+  }
+
+  return `${sessionIdSegment(hex, 0, 4)}-${sessionIdSegment(hex, 4, 4)}`;
+}
+
+function topicHexFromRoom(room) {
+  const normalized = String(room).trim().toUpperCase() || 'holepunch-playground';
+  const bytes = new Uint8Array(32);
+
+  for (let index = 0; index < bytes.length; index += 1) {
+    bytes[index] = normalized.charCodeAt(index % normalized.length) & 0xff;
+  }
+
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+function campaignTopicHex(campaignId) {
+  return topicHexFromRoom(sessionIdFromCampaignId(campaignId));
+}
+
+function resolveTopicHex(message, role) {
+  if (role === 'host') {
+    if (!activeCampaignId) {
+      throw new Error('Open a campaign before hosting a session.');
+    }
+
+    return campaignTopicHex(activeCampaignId);
+  }
+
+  const topicHex = message.topicHex ? String(message.topicHex).trim().toLowerCase() : '';
+  const sessionCode = message.sessionCode ? String(message.sessionCode).trim().toUpperCase() : '';
+  const campaignId = message.campaignId ? String(message.campaignId).trim() : '';
+
+  if (/^[0-9a-f]{64}$/.test(topicHex)) {
+    return topicHex;
+  }
+
+  if (sessionCode) {
+    return topicHexFromRoom(sessionCode);
+  }
+
+  if (campaignId) {
+    return campaignTopicHex(campaignId);
+  }
+
+  throw new Error('Topic hex, session code, or campaign id is required to join.');
 }
 
 async function initStorage(message) {
@@ -271,6 +330,57 @@ function attachReplicationToPeers() {
   }
 }
 
+function buildSessionInfoPacket() {
+  if (!campaignCore || !activeCampaignId) {
+    return null;
+  }
+
+  return (
+    JSON.stringify({
+      type: 'session-info',
+      campaignId: activeCampaignId,
+      coreKey: b4a.toString(campaignCore.key, 'hex'),
+    }) + '\n'
+  );
+}
+
+function sendSessionInfo(socket) {
+  const packet = buildSessionInfoPacket();
+
+  if (!packet) {
+    return;
+  }
+
+  socket.write(b4a.from(packet));
+}
+
+function emitCampaignOpened() {
+  if (!campaignCore || !activeCampaignId) {
+    return;
+  }
+
+  send({
+    type: 'campaign-opened',
+    campaignId: activeCampaignId,
+    coreKey: b4a.toString(campaignCore.key, 'hex'),
+    discoveryKey: b4a.toString(campaignCore.discoveryKey, 'hex'),
+    writable: campaignCore.writable,
+  });
+}
+
+function scheduleCampaignSync() {
+  if (!campaignCore) {
+    return;
+  }
+
+  void campaignCore.update().catch((error) => {
+    send({
+      type: 'status',
+      message: `Campaign sync warning: ${error.message}`,
+    });
+  });
+}
+
 async function putRecord(message, options = {}) {
   const key = String(message.key || '');
   const requestId = message.requestId;
@@ -406,27 +516,18 @@ async function listRecords(message) {
 async function startSwarm(message) {
   await stopSwarm();
 
-  const topicHex = String(message.topicHex || '')
-    .trim()
-    .toLowerCase();
   const alias = String(message.alias || 'device').trim() || 'device';
   const role = message.role === 'join' ? 'join' : 'host';
-  const sessionCode = message.sessionCode ? String(message.sessionCode).trim().toUpperCase() : null;
-  const sessionId = message.sessionId ? String(message.sessionId).trim() : null;
-
-  if (!/^[0-9a-f]{64}$/i.test(topicHex)) {
-    throw new Error('Topic must be a 64 character hex string.');
-  }
 
   if (role === 'host' && !campaignCore) {
     throw new Error('Open a campaign before hosting a session.');
   }
 
+  const topicHex = resolveTopicHex(message, role);
+
   currentAlias = alias;
   currentRole = role;
   currentTopicHex = topicHex;
-  activeSessionCode = sessionCode;
-  activeSessionId = sessionId;
   swarm = new Hyperswarm();
 
   swarm.on('connection', (socket, info) => {
@@ -446,17 +547,18 @@ async function startSwarm(message) {
       connectionCount: peers.size,
     });
 
-    if (currentRole === 'host' && campaignCore) {
-      const handshake = b4a.from(
-        JSON.stringify({
-          type: 'session-info',
-          campaignId: activeCampaignId,
-          coreKey: b4a.toString(campaignCore.key, 'hex'),
-          sessionCode: activeSessionCode,
-          sessionId: activeSessionId,
-        }) + '\n',
+    if (currentRole === 'host') {
+      sendSessionInfo(socket);
+    }
+
+    if (currentRole === 'join') {
+      socket.write(
+        b4a.from(
+          JSON.stringify({
+            type: 'request-session-info',
+          }) + '\n',
+        ),
       );
-      socket.write(handshake);
     }
 
     socket.on('data', (data) => {
@@ -473,6 +575,11 @@ async function startSwarm(message) {
 
         try {
           const packet = JSON.parse(line);
+
+          if (packet.type === 'request-session-info' && currentRole === 'host') {
+            sendSessionInfo(socket);
+            continue;
+          }
 
           if (packet.type === 'session-info' && currentRole === 'join') {
             handleSessionInfo(packet).catch((error) => {
@@ -630,38 +737,20 @@ function handleRemotePutResult(packet) {
 async function handleSessionInfo(packet) {
   const campaignId = String(packet.campaignId || '').trim();
   const coreKey = String(packet.coreKey || '').trim();
-  const sessionCode = packet.sessionCode ? String(packet.sessionCode).trim().toUpperCase() : null;
-  const sessionId = packet.sessionId ? String(packet.sessionId).trim() : null;
 
   if (!campaignId || !coreKey) {
     throw new Error('Invalid session info from host.');
   }
 
-  activeSessionCode = sessionCode;
-  activeSessionId = sessionId;
-
   if (activeCampaignId === campaignId && campaignCore) {
-    await campaignCore.update();
-    send({
-      type: 'campaign-opened',
-      campaignId,
-      coreKey: b4a.toString(campaignCore.key, 'hex'),
-      discoveryKey: b4a.toString(campaignCore.discoveryKey, 'hex'),
-      writable: campaignCore.writable,
-    });
+    emitCampaignOpened();
+    scheduleCampaignSync();
     return;
   }
 
   await openCampaign({ campaignId, coreKey }, { silent: true });
-  await campaignCore.update();
-
-  send({
-    type: 'campaign-opened',
-    campaignId,
-    coreKey: b4a.toString(campaignCore.key, 'hex'),
-    discoveryKey: b4a.toString(campaignCore.discoveryKey, 'hex'),
-    writable: campaignCore.writable,
-  });
+  emitCampaignOpened();
+  scheduleCampaignSync();
 }
 
 function broadcastChat(message) {
@@ -734,8 +823,6 @@ async function stopSwarm() {
   discovery = null;
   currentRole = null;
   currentTopicHex = null;
-  activeSessionCode = null;
-  activeSessionId = null;
 }
 
 function ensureStore() {

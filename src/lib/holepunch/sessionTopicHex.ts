@@ -1,6 +1,11 @@
+import { normalizeSessionCode, sessionIdFromCampaignId } from '@/database/utils/session-code';
+
 import { topicHexFromRoom } from './topicHexFromRoom';
-import { normalizeSessionCode } from '@/database/utils/session-code';
 
 export function sessionTopicHex(sessionCode: string) {
   return topicHexFromRoom(normalizeSessionCode(sessionCode));
+}
+
+export function campaignTopicHex(campaignId: string) {
+  return sessionTopicHex(sessionIdFromCampaignId(campaignId));
 }

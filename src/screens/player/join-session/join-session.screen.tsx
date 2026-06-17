@@ -4,11 +4,11 @@ import { useRef } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import { Button, ButtonSecondary, DismissKeyboardView, Icon, Text, TextField } from '@/components';
-import { normalizeSessionCode } from '@/database/utils/session-code';
+import { normalizeTopicHex } from '@/lib/holepunch/topicHex';
 import {
   FEATURE_ITEMS,
   KEYBOARD_SCROLL_OFFSET,
-  SESSION_CODE_PLACEHOLDER,
+  TOPIC_HEX_PLACEHOLDER,
 } from './join-session.constants';
 import { joinSessionSchema, type JoinSessionFormValues } from './join-session.schema';
 import { styles } from './join-session.styles';
@@ -24,7 +24,7 @@ export const JoinSessionScreen = ({
 
   const { control, handleSubmit } = useForm<JoinSessionFormValues>({
     resolver: zodResolver(joinSessionSchema),
-    defaultValues: { sessionCode: '' },
+    defaultValues: { topicHex: '' },
   });
 
   const scrollForKeyboard = () => {
@@ -33,9 +33,9 @@ export const JoinSessionScreen = ({
     });
   };
 
-  const onSubmit = ({ sessionCode }: JoinSessionFormValues) => {
+  const onSubmit = ({ topicHex }: JoinSessionFormValues) => {
     onConnect?.({
-      sessionCode: normalizeSessionCode(sessionCode),
+      topicHex: normalizeTopicHex(topicHex),
     });
   };
 
@@ -65,12 +65,12 @@ export const JoinSessionScreen = ({
 
             <View style={styles.form}>
               <View style={styles.inputSection}>
-                <Text variant="joinSessionLabel">Session Code</Text>
+                <Text variant="joinSessionLabel">Topic Hex</Text>
 
                 <View style={styles.inputWrapper}>
                   <Controller
                     control={control}
-                    name="sessionCode"
+                    name="topicHex"
                     render={({ field: { onChange, onBlur, value } }) => (
                       <TextField
                         value={value}
@@ -78,9 +78,9 @@ export const JoinSessionScreen = ({
                         onBlur={onBlur}
                         onFocus={scrollForKeyboard}
                         textAlign="center"
-                        placeholder={SESSION_CODE_PLACEHOLDER}
+                        placeholder={TOPIC_HEX_PLACEHOLDER}
                         autoCorrect={false}
-                        autoCapitalize="characters"
+                        autoCapitalize="none"
                         inputStyle={styles.input}
                       />
                     )}
@@ -92,7 +92,7 @@ export const JoinSessionScreen = ({
                 </View>
 
                 <Text variant="joinSessionHelper" style={styles.helperText}>
-                  Ask your Dungeon Master for the session code
+                  Ask your Dungeon Master for the topic hex
                 </Text>
                 {errorMessage ? (
                   <Text variant="joinSessionHelper" style={styles.helperText}>

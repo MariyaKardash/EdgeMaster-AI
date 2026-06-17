@@ -7,6 +7,7 @@ export const styles = StyleSheet.create((theme) => ({
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.xs,
+    flexShrink: 0,
   },
   copyLabel: {
     color: theme.colors.primary,
@@ -30,9 +31,11 @@ export const styles = StyleSheet.create((theme) => ({
     borderBottomColor: withAlphaHex('primary', 0.2),
   },
   sessionInfo: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.md,
+    minWidth: 0,
   },
   sessionLabel: {
     color: theme.colors.onSurfaceVariant,
@@ -43,5 +46,7 @@ export const styles = StyleSheet.create((theme) => ({
   sessionId: {
     color: theme.colors.primary,
     fontWeight: '700',
+    flexShrink: 1,
+    minWidth: 0,
   },
 }));

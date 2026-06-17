@@ -1,6 +1,6 @@
 import type { ConnectedPlayer } from '@/components/molecules/connected-player-avatar';
 
-export const MOCK_SESSION_ID = 'AX7K-9M2P';
+export const MOCK_SESSION_ID = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
 export const BRAND_TITLE = 'EdgeMaster';
 

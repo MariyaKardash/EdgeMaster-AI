@@ -7,7 +7,7 @@ import { Text } from '@/components/atoms/text';
 import { styles } from './session-id-card.styles';
 import type { SessionIdCardProps } from './session-id-card.types';
 
-export const SessionIdCard = ({ sessionId, label = 'Session ID' }: SessionIdCardProps) => {
+export const SessionIdCard = ({ sessionId, label = 'Topic Hex' }: SessionIdCardProps) => {
   const [copied, setCopied] = useState(false);
   const cardScale = useMemo(() => new Animated.Value(1), []);
 
@@ -48,7 +48,7 @@ export const SessionIdCard = ({ sessionId, label = 'Session ID' }: SessionIdCard
             style={styles.copyButton}
             onPress={handleCopy}
             accessibilityRole="button"
-            accessibilityLabel="Copy session ID"
+            accessibilityLabel="Copy topic hex"
           >
             <Icon
               name={copied ? 'check' : 'content-copy'}

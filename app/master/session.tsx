@@ -17,13 +17,13 @@ const MasterSessionRoute = () => {
     stopSession,
   } = useCampaign();
 
-  const copySessionCode = async () => {
+  const copyTopicHex = async () => {
     if (!activeSession) {
       return;
     }
 
-    await Clipboard.setStringAsync(activeSession.sessionCode);
-    Alert.alert('Copied', 'Session code copied to clipboard.');
+    await Clipboard.setStringAsync(activeSession.topicHex);
+    Alert.alert('Copied', 'Topic hex copied to clipboard.');
   };
 
   if (!activeSession || !activeCampaign) {
@@ -43,12 +43,12 @@ const MasterSessionRoute = () => {
       </View>
 
       <View style={styles.card}>
-        <Text variant="labelMd">Session code</Text>
+        <Text variant="labelMd">Topic hex</Text>
         <Text variant="codeMd" style={styles.sessionCode}>
-          {activeSession.sessionCode}
+          {activeSession.topicHex}
         </Text>
         <Text variant="bodyMd" style={styles.meta}>
-          Share this code so players can join. Connected players: {connectedPeers}
+          Share this topic hex so players can join. Connected players: {connectedPeers}
         </Text>
         <Text variant="bodyMd" style={styles.meta}>
           Connection: {connectionState}
@@ -56,11 +56,7 @@ const MasterSessionRoute = () => {
       </View>
 
       <View style={styles.actions}>
-        <ButtonSecondary
-          title="Copy session code"
-          fullWidth
-          onPress={() => void copySessionCode()}
-        />
+        <ButtonSecondary title="Copy topic hex" fullWidth onPress={() => void copyTopicHex()} />
         <ButtonSecondary
           title="End session"
           fullWidth

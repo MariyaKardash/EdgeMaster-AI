@@ -29,7 +29,7 @@ const CampaignSelectionRoute = () => {
       name: campaign.name,
       sessionNumber: index + 1,
       lastPlayed: formatLastPlayed(campaign.updatedAt),
-      sessionCode: isActiveCampaign ? activeSession.sessionCode : undefined,
+      topicHex: isActiveCampaign ? activeSession.topicHex : undefined,
     };
   });
 

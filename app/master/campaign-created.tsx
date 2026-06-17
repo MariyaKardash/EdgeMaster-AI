@@ -1,7 +1,7 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { useCampaign } from '@/contexts/campaign-context';
-import { useCampaignSessionId } from '@/hooks/useCampaignSessionId';
+import { useCampaignTopicHex } from '@/hooks/useCampaignSessionId';
 import { CampaignCreatedScreen } from '@/screens/master/campaign-created';
 
 const CampaignCreatedRoute = () => {
@@ -17,7 +17,7 @@ const CampaignCreatedRoute = () => {
     itemCount?: string;
   }>();
 
-  const sessionId = useCampaignSessionId();
+  const topicHex = useCampaignTopicHex();
   const campaignName =
     activeCampaign?.name ?? (typeof paramCampaignName === 'string' ? paramCampaignName : undefined);
 
@@ -28,7 +28,7 @@ const CampaignCreatedRoute = () => {
 
   return (
     <CampaignCreatedScreen
-      sessionId={sessionId}
+      sessionId={topicHex}
       campaignName={campaignName}
       characterCount={Number.isNaN(resolvedCharacterCount) ? undefined : resolvedCharacterCount}
       itemCount={Number.isNaN(resolvedItemCount) ? undefined : resolvedItemCount}

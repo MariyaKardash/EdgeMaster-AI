@@ -315,11 +315,11 @@ export function createP2pWorkletClient(storagePath: string): P2pWorkletClient {
             reject(new Error(event.message));
           }
 
-          if (
-            event.type === 'ready' &&
-            event.role === config.role &&
-            event.topicHex === config.topicHex.toLowerCase()
-          ) {
+          if (event.type === 'ready' && event.role === config.role) {
+            if (config.topicHex && event.topicHex !== config.topicHex.trim().toLowerCase()) {
+              return;
+            }
+
             clearTimeout(timeout);
             unsubscribe();
             resolve();
@@ -329,7 +329,7 @@ export function createP2pWorkletClient(storagePath: string): P2pWorkletClient {
         send(ipc, {
           type: 'start-swarm',
           ...config,
-          topicHex: config.topicHex.toLowerCase(),
+          ...(config.topicHex ? { topicHex: config.topicHex.trim().toLowerCase() } : {}),
         });
       });
     },
@@ -361,6 +361,13 @@ export function createP2pWorkletClient(storagePath: string): P2pWorkletClient {
         }, timeoutMs);
 
         const unsubscribe = onEvent((event) => {
+          if (event.type === 'error' && !event.requestId) {
+            clearTimeout(timeout);
+            unsubscribe();
+            reject(new Error(event.message));
+            return;
+          }
+
           if (event.type === 'campaign-opened') {
             clearTimeout(timeout);
             unsubscribe();
@@ -369,6 +376,36 @@ export function createP2pWorkletClient(storagePath: string): P2pWorkletClient {
               coreKey: event.coreKey,
               discoveryKey: event.discoveryKey,
               writable: event.writable,
+            });
+          }
+        });
+      });
+    },
+    waitForPeer(timeoutMs = 30_000) {
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          unsubscribe();
+          reject(
+            new Error(
+              'Could not find the host session. Make sure the Dungeon Master has opened the session dashboard on another device.',
+            ),
+          );
+        }, timeoutMs);
+
+        const unsubscribe = onEvent((event) => {
+          if (event.type === 'error' && !event.requestId) {
+            clearTimeout(timeout);
+            unsubscribe();
+            reject(new Error(event.message));
+            return;
+          }
+
+          if (event.type === 'peer-open') {
+            clearTimeout(timeout);
+            unsubscribe();
+            resolve({
+              peerId: event.peerId,
+              connectionCount: event.connectionCount,
             });
           }
         });

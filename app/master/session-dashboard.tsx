@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Alert } from 'react-native';
 
@@ -10,8 +10,8 @@ import {
   createEntity,
   dbKeys,
   dbPrefixEnd,
-  generateSessionCode,
   normalizeStoredCampaign,
+  sessionIdFromCampaignId,
   playerSchema,
   sessionSchema,
   touchEntity,
@@ -19,9 +19,9 @@ import {
   type Player,
   type Session,
 } from '@/database';
-import { useCampaignId, useCampaignSessionId } from '@/hooks/useCampaignSessionId';
+import { useCampaignId, useCampaignTopicHex } from '@/hooks/useCampaignSessionId';
 import { defaultAlias } from '@/lib/holepunch/defaultAlias';
-import { sessionTopicHex } from '@/lib/holepunch/sessionTopicHex';
+import { campaignTopicHex } from '@/lib/holepunch/sessionTopicHex';
 import { navigateSessionDashboardTab } from '@/navigation/session-dashboard-tabs';
 import { SessionDashboardScreen } from '@/screens/master/session-dashboard';
 
@@ -40,7 +40,7 @@ function mapPlayerToConnected(player: Player): ConnectedPlayer {
 const SessionDashboardRoute = () => {
   const router = useRouter();
   const campaignId = useCampaignId();
-  const displaySessionId = useCampaignSessionId();
+  const displayTopicHex = useCampaignTopicHex();
   const {
     ready,
     activeSession,
@@ -53,10 +53,12 @@ const SessionDashboardRoute = () => {
     setActiveChapter,
     setActiveSession,
     setConnectionState,
+    runWithoutCampaignRefresh,
   } = useCampaign();
-  const [sessionCode, setSessionCode] = useState<string>();
+  const [topicHex, setTopicHex] = useState<string>();
   const [connectedPlayers, setConnectedPlayers] = useState<ConnectedPlayer[]>([]);
   const [isStartingSession, setIsStartingSession] = useState(false);
+  const autoStartAttemptedRef = useRef(false);
 
   const isSessionActive = connectionState === 'connected';
   const isSessionConnecting = connectionState === 'connecting';
@@ -91,17 +93,14 @@ const SessionDashboardRoute = () => {
 
   const hostSession = useCallback(
     async (session: Session) => {
-      // Start hosting the P2P swarm so players can join with the session code.
+      // Start hosting the P2P swarm so players can join with the topic hex.
       await worklet.startSwarm({
         role: 'host',
         alias: defaultAlias(),
-        topicHex: session.topicHex,
-        sessionCode: session.sessionCode,
-        sessionId: session.id,
       });
 
       setActiveSession(session);
-      setSessionCode(session.sessionCode);
+      setTopicHex(session.topicHex);
       await loadPlayers(session.id);
     },
     [loadPlayers, setActiveSession, worklet],
@@ -146,7 +145,7 @@ const SessionDashboardRoute = () => {
           .find((item) => item.campaignId === campaignId && item.status === 'active');
 
         if (existingSession && !cancelled) {
-          setSessionCode(existingSession.sessionCode);
+          setTopicHex(existingSession.topicHex);
         }
       } catch (error) {
         if (!cancelled) {
@@ -192,100 +191,135 @@ const SessionDashboardRoute = () => {
     setConnectionState('connecting');
 
     try {
-      const currentSession =
-        activeSession?.campaignId === campaignId && activeSession.status === 'active'
-          ? activeSession
-          : null;
+      await runWithoutCampaignRefresh(async () => {
+        const currentSession =
+          activeSession?.campaignId === campaignId && activeSession.status === 'active'
+            ? activeSession
+            : null;
 
-      if (currentSession && connectionState === 'idle') {
-        await hostSession(currentSession);
-        return;
-      }
-
-      // --- 1. Open campaign database ---
-      await worklet.openCampaign(campaignId);
-
-      const campaignValue = await worklet.get(dbKeys.campaign(campaignId));
-
-      if (!campaignValue) {
-        throw new Error('Campaign not found.');
-      }
-
-      const campaign = campaignSchema.parse(normalizeStoredCampaign(campaignValue));
-      setActiveCampaign(campaign);
-
-      // --- 2. Ensure active chapter ---
-      let chapter: Chapter | null = null;
-
-      if (campaign.activeChapterId) {
-        const chapterValue = await worklet.get<Chapter>(dbKeys.chapter(campaign.activeChapterId));
-
-        if (chapterValue) {
-          chapter = chapterSchema.parse(chapterValue);
+        if (currentSession) {
+          await hostSession(currentSession);
+          return;
         }
-      }
 
-      if (!chapter) {
-        chapter = createEntity<Chapter>({
-          campaignId,
-          title: 'Chapter 1',
-          description: 'The journey begins.',
-          order: 0,
-          status: 'active',
-          generationSource: { type: 'manual' },
-        });
+        // --- 1. Open campaign database ---
+        await worklet.openCampaign(campaignId);
 
-        // Save the first chapter record.
-        await worklet.put(dbKeys.chapter(chapter.id), chapter);
-        // Index the chapter under this campaign so it can be listed by order.
-        await worklet.put(
-          `${dbKeys.indexChaptersByCampaign(campaignId)}${chapter.order}`,
-          chapter.id,
+        const campaignValue = await worklet.get(dbKeys.campaign(campaignId));
+
+        if (!campaignValue) {
+          throw new Error('Campaign not found.');
+        }
+
+        const campaign = campaignSchema.parse(normalizeStoredCampaign(campaignValue));
+        setActiveCampaign(campaign);
+
+        // --- 2. Ensure active chapter ---
+        let chapter: Chapter | null = null;
+
+        if (campaign.activeChapterId) {
+          const chapterValue = await worklet.get<Chapter>(dbKeys.chapter(campaign.activeChapterId));
+
+          if (chapterValue) {
+            chapter = chapterSchema.parse(chapterValue);
+          }
+        }
+
+        if (!chapter) {
+          chapter = createEntity<Chapter>({
+            campaignId,
+            title: 'Chapter 1',
+            description: 'The journey begins.',
+            order: 0,
+            status: 'active',
+            generationSource: { type: 'manual' },
+          });
+
+          // Save the first chapter record.
+          await worklet.put(dbKeys.chapter(chapter.id), chapter);
+          // Index the chapter under this campaign so it can be listed by order.
+          await worklet.put(
+            `${dbKeys.indexChaptersByCampaign(campaignId)}${chapter.order}`,
+            chapter.id,
+          );
+
+          const campaignNext = touchEntity({
+            ...campaign,
+            activeChapterId: chapter.id,
+          });
+
+          // Mark this chapter as the active chapter for the campaign.
+          await worklet.put(dbKeys.campaign(campaignNext.id), campaignNext);
+          setActiveCampaign(campaignNext);
+        }
+
+        setActiveChapter(chapter);
+
+        // --- 3. Reuse active session or create one ---
+        const sessionEntries = await worklet.list<Session>(
+          dbKeys.session(''),
+          dbPrefixEnd('@session/'),
         );
 
-        const campaignNext = touchEntity({
-          ...campaign,
-          activeChapterId: chapter.id,
-        });
+        let session =
+          sessionEntries
+            .map((entry) => sessionSchema.parse(entry.value))
+            .find((item) => item.campaignId === campaignId && item.status === 'active') ?? null;
 
-        // Mark this chapter as the active chapter for the campaign.
-        await worklet.put(dbKeys.campaign(campaignNext.id), campaignNext);
-        setActiveCampaign(campaignNext);
-      }
+        const expectedSessionCode = sessionIdFromCampaignId(campaignId);
+        const expectedTopicHex = campaignTopicHex(campaignId);
 
-      setActiveChapter(chapter);
+        if (
+          session &&
+          (session.sessionCode !== expectedSessionCode || session.topicHex !== expectedTopicHex)
+        ) {
+          const previousSessionCode = session.sessionCode;
+          const previousTopicHex = session.topicHex;
 
-      // --- 3. Reuse active session or create one ---
-      const sessionEntries = await worklet.list<Session>(
-        dbKeys.session(''),
-        dbPrefixEnd('@session/'),
-      );
+          session = touchEntity({
+            ...session,
+            sessionCode: expectedSessionCode,
+            topicHex: expectedTopicHex,
+          });
 
-      let session =
-        sessionEntries
-          .map((entry) => sessionSchema.parse(entry.value))
-          .find((item) => item.campaignId === campaignId && item.status === 'active') ?? null;
+          // Align stored session metadata with the campaign-derived join code and topic.
+          await worklet.put(dbKeys.session(session.id), session);
 
-      if (!session) {
-        const nextSessionCode = generateSessionCode();
+          if (previousSessionCode !== expectedSessionCode) {
+            await worklet.del(dbKeys.indexSessionByCode(previousSessionCode));
+          }
 
-        session = createEntity<Session>({
-          campaignId,
-          chapterId: chapter.id,
-          sessionCode: nextSessionCode,
-          topicHex: sessionTopicHex(nextSessionCode),
-          status: 'active',
-        });
+          if (previousTopicHex !== expectedTopicHex) {
+            await worklet.del(dbKeys.indexSessionByTopicHex(previousTopicHex));
+          }
 
-        // Save the new session record.
-        await worklet.put(dbKeys.session(session.id), session);
-        // Map the join code to this session so players can look it up.
-        await worklet.put(dbKeys.indexSessionByCode(session.sessionCode), session.id);
-      }
+          await worklet.put(dbKeys.indexSessionByCode(session.sessionCode), session.id);
+          await worklet.put(dbKeys.indexSessionByTopicHex(session.topicHex), session.id);
+        }
 
-      // --- 4. Host hyperswarm session for player join codes ---
-      await hostSession(session);
+        if (!session) {
+          const nextSessionCode = sessionIdFromCampaignId(campaignId);
+
+          session = createEntity<Session>({
+            campaignId,
+            chapterId: chapter.id,
+            sessionCode: nextSessionCode,
+            topicHex: campaignTopicHex(campaignId),
+            status: 'active',
+          });
+
+          // Save the new session record.
+          await worklet.put(dbKeys.session(session.id), session);
+          // Map the topic hex to this session so players can look it up.
+          await worklet.put(dbKeys.indexSessionByCode(session.sessionCode), session.id);
+          await worklet.put(dbKeys.indexSessionByTopicHex(session.topicHex), session.id);
+        }
+
+        // --- 4. Host hyperswarm session for player join codes ---
+        await hostSession(session);
+      });
     } catch (error) {
+      autoStartAttemptedRef.current = false;
       setConnectionState('error');
       Alert.alert(
         'Unable to start session',
@@ -296,11 +330,24 @@ const SessionDashboardRoute = () => {
     }
   };
 
-  const resolvedSessionId = sessionCode ?? displaySessionId;
+  const resolvedTopicHex = topicHex ?? displayTopicHex;
+
+  useEffect(() => {
+    autoStartAttemptedRef.current = false;
+  }, [campaignId]);
+
+  useEffect(() => {
+    if (!ready || !campaignId || autoStartAttemptedRef.current || connectionState !== 'idle') {
+      return;
+    }
+
+    autoStartAttemptedRef.current = true;
+    void handleStartSession();
+  }, [ready, campaignId, connectionState]);
 
   return (
     <SessionDashboardScreen
-      sessionId={resolvedSessionId}
+      sessionId={resolvedTopicHex}
       isSessionActive={isSessionActive}
       isSessionConnecting={isSessionConnecting}
       isStartingSession={isStartingSession}

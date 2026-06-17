@@ -30,4 +30,4 @@ export const ROLE_OPTIONS: RoleOption[] = [
   },
 ];
 
-export const FOOTER_NOTE = 'No account needed — connect locally via session code';
+export const FOOTER_NOTE = 'No account needed — connect locally via topic hex';

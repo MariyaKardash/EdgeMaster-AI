@@ -3,7 +3,7 @@ export type CampaignSessionInfo = {
   name: string;
   sessionNumber: number;
   lastPlayed: string;
-  sessionCode?: string;
+  topicHex?: string;
 };
 
 export type ContinueCampaignCardProps = {
