@@ -47,7 +47,6 @@ const CampaignSelectionRoute = () => {
     setConnectionState,
     setCampaigns,
     openCampaign,
-    startMasterSession,
     runWithoutCampaignRefresh,
   } = useCampaign();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -326,27 +325,8 @@ const CampaignSelectionRoute = () => {
   const handleContinue = async (item: CampaignSessionInfo) => {
     setIsSubmitting(true);
 
-    let chapter;
     try {
-      const result = await openCampaign(item.campaignId);
-      chapter = result.chapter;
-    } catch (error) {
-      setIsSubmitting(false);
-      Alert.alert(
-        'Unable to continue campaign',
-        error instanceof Error ? error.message : 'Something went wrong.',
-      );
-      return;
-    }
-
-    if (!chapter) {
-      setIsSubmitting(false);
-      Alert.alert('Unable to continue', 'This campaign has no active chapter yet.');
-      return;
-    }
-
-    try {
-      await startMasterSession(item.campaignId, chapter.id);
+      await openCampaign(item.campaignId);
     } catch (error) {
       setIsSubmitting(false);
       Alert.alert(
@@ -357,7 +337,10 @@ const CampaignSelectionRoute = () => {
     }
 
     setIsSubmitting(false);
-    router.push('/master/session');
+    router.replace({
+      pathname: '/master/session-dashboard',
+      params: { campaignId: item.campaignId },
+    });
   };
 
   return (
