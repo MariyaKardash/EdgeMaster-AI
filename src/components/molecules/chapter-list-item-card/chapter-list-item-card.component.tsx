@@ -2,16 +2,9 @@ import { Pressable, View } from 'react-native';
 
 import { Icon } from '@/components/atoms/icon';
 import { Text } from '@/components/atoms/text';
-import type { ChapterStatus } from '@/database/entities';
 import { CHAPTER_STATUS_LABELS } from './chapter-list-item-card.constants';
 import { styles } from './chapter-list-item-card.styles';
 import type { ChapterListItemCardProps } from './chapter-list-item-card.types';
-
-const TRAILING_ICONS: Record<ChapterStatus, 'chevron-right' | 'check-circle' | 'edit-note'> = {
-  active: 'chevron-right',
-  completed: 'check-circle',
-  draft: 'edit-note',
-};
 
 export const ChapterListItemCard = ({
   title,
@@ -45,7 +38,7 @@ export const ChapterListItemCard = ({
           </Text>
         </View>
         <View style={styles.trailingIcon}>
-          <Icon name={TRAILING_ICONS[status]} size={24} color="onSurfaceVariant" />
+          <Icon name="chevron-right" size={24} color="onSurfaceVariant" />
         </View>
       </View>
     </Pressable>

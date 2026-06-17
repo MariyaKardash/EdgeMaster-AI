@@ -2,6 +2,7 @@ import type { ConnectedPlayer } from '@/components/molecules/connected-player-av
 import type { SessionDashboardTab } from '@/components/molecules/session-dashboard-bottom-nav';
 
 export type SessionDashboardScreenProps = {
+  campaignName?: string;
   sessionId?: string;
   activeChapterTitle?: string;
   activeChapterDescription?: string;

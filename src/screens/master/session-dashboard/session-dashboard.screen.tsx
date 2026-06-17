@@ -10,29 +10,32 @@ import {
   Text,
 } from '@/components';
 import {
-  ACTIVE_CHAPTER_DESCRIPTION,
-  ACTIVE_CHAPTER_IMAGE_URI,
   ACTIVE_CHAPTER_SECTION_TITLE,
-  ACTIVE_CHAPTER_TITLE,
   BRAND_TITLE,
   CONNECTED_PLAYERS_SECTION_TITLE,
   getActivePlayersLabel,
   MOCK_CONNECTED_PLAYERS,
   MOCK_SESSION_ID,
+  NO_ACTIVE_CHAPTER_DESCRIPTION,
+  NO_ACTIVE_CHAPTER_TITLE,
 } from './session-dashboard.constants';
 import { styles } from './session-dashboard.styles';
 import type { SessionDashboardScreenProps } from './session-dashboard.types';
 
 export const SessionDashboardScreen = ({
+  campaignName,
   sessionId = MOCK_SESSION_ID,
-  activeChapterTitle = ACTIVE_CHAPTER_TITLE,
-  activeChapterDescription = ACTIVE_CHAPTER_DESCRIPTION,
-  activeChapterImageUri = ACTIVE_CHAPTER_IMAGE_URI,
+  activeChapterTitle,
+  activeChapterDescription,
+  activeChapterImageUri,
   connectedPlayers = MOCK_CONNECTED_PLAYERS,
   onOpenChapter,
   onPlayerPress,
   onTabPress,
 }: SessionDashboardScreenProps) => {
+  const chapterTitle = activeChapterTitle ?? NO_ACTIVE_CHAPTER_TITLE;
+  const chapterDescription = activeChapterDescription ?? NO_ACTIVE_CHAPTER_DESCRIPTION;
+  const hasActiveChapter = Boolean(activeChapterTitle);
   const insets = useSafeAreaInsets();
 
   return (
@@ -40,9 +43,9 @@ export const SessionDashboardScreen = ({
       <View style={{ paddingTop: insets.top }}>
         <View style={styles.topBar}>
           <View style={styles.brandRow}>
-            <Icon name="auto-awesome" size={24} color="primary" />
+            <Icon name="castle" size={24} color="primary" />
             <Text variant="headlineMd" style={styles.brandTitle}>
-              {BRAND_TITLE}
+              {campaignName ?? BRAND_TITLE}
             </Text>
           </View>
         </View>
@@ -64,10 +67,10 @@ export const SessionDashboardScreen = ({
           </View>
 
           <ActiveChapterCard
-            title={activeChapterTitle}
-            description={activeChapterDescription}
-            imageUri={activeChapterImageUri}
-            onOpenChapter={onOpenChapter}
+            title={chapterTitle}
+            description={chapterDescription}
+            imageUri={hasActiveChapter ? activeChapterImageUri : undefined}
+            onOpenChapter={hasActiveChapter ? onOpenChapter : undefined}
           />
         </View>
 

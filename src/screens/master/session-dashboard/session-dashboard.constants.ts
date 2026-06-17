@@ -10,13 +10,9 @@ export const CONNECTED_PLAYERS_SECTION_TITLE = 'Connected Players';
 
 export const getActivePlayersLabel = (count: number) => `${count} Active`;
 
-export const ACTIVE_CHAPTER_TITLE = 'The Sunken Marshes';
-
-export const ACTIVE_CHAPTER_DESCRIPTION =
-  'The group ventures deep into the weeping bogs of Oakhaven. Toxic mists rise from the waters where an ancient relic is said to be buried beneath the roots of the Great Willow.';
-
-export const ACTIVE_CHAPTER_IMAGE_URI =
-  'https://lh3.googleusercontent.com/aida-public/AB6AXuD4zIio6SSIO0rn6gVM-7QJwwQ34hCAhbWn3KFXlj_j-xeWkcEWdkjeT0gpErGAKRVrj7mw59i0Kwlcgd_Y9nxIrWVzYnH9xH1Ppa_VPXHdzLA4o9M0Zlnxo7xfAdSgja_tEU0sciyRQvhocTzSXWMZN0cm4mhpOBvw1oUUcev6oCfO_haxKX6hcxJ7pY1t0TLFn9Og2tk1ZK0iCjc1-MZL1RzRJI4zW6muPGZRPFUGs-Xj8lAy0mb4NGCRq6x5xCCNZBotPyEj9FI';
+export const NO_ACTIVE_CHAPTER_TITLE = 'The Story Awaits';
+export const NO_ACTIVE_CHAPTER_DESCRIPTION =
+  'No chapter is active yet. Head to the Chapters tab to begin your next adventure.';
 
 export const MOCK_CONNECTED_PLAYERS: ConnectedPlayer[] = [
   {
