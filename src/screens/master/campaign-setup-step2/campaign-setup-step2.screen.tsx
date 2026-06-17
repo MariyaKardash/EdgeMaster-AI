@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ScrollView, View } from 'react-native';
 
 import {
@@ -13,6 +13,7 @@ import {
 import type { CharacterStats } from '@/components/molecules/character-card';
 import { STAT_LABELS } from '@/components/molecules/character-card/character-card.constants';
 import { CampaignSetupHeader } from '@/components/organisms/campaign-setup-header';
+import type { CampaignSetupCharacter } from '@/database/entities';
 import { campaignSetupStore } from '@/stores/campaign-setup-store';
 import {
   ADD_HERO_LABEL,
@@ -43,6 +44,9 @@ import type {
   NewHeroForm,
 } from './campaign-setup-step2.types';
 
+const toSetupCharacters = (characters: CampaignCharacter[]): CampaignSetupCharacter[] =>
+  characters.map((character) => ({ ...character, selected: false }));
+
 const EMPTY_HERO_STATS: HeroStats = {
   str: '',
   dex: '',
@@ -64,54 +68,51 @@ const rollStats = (): CharacterStats => ({
 });
 
 export const CampaignSetupStep2Screen = ({ onContinue, onBack }: CampaignSetupStep2ScreenProps) => {
-  const [characters, setCharacters] = useState<CampaignCharacter[]>(() =>
-    campaignSetupStore.characters.length > 0 ? campaignSetupStore.characters : MOCK_CHARACTERS,
-  );
-  const [selectedIds, setSelectedIds] = useState<string[]>(
-    () => campaignSetupStore.selectedCharacterIds,
+  const [characters, setCharacters] = useState<CampaignSetupCharacter[]>(() =>
+    campaignSetupStore.characters.length > 0
+      ? campaignSetupStore.characters
+      : toSetupCharacters(MOCK_CHARACTERS),
   );
   const [heroForm, setHeroForm] = useState<NewHeroForm>(EMPTY_HERO_FORM);
   const [heroStats, setHeroStats] = useState<HeroStats>(EMPTY_HERO_STATS);
 
-  useEffect(() => {
-    return () => {
-      campaignSetupStore.resetStep2();
-    };
-  }, []);
+  const selectedCount = characters.filter((character) => character.selected).length;
 
   const toggleCharacter = (id: string) => {
-    setSelectedIds((current) => {
-      if (current.includes(id)) {
-        return current.filter((characterId) => characterId !== id);
-      }
+    setCharacters((current) => {
+      const currentSelectedCount = current.filter((character) => character.selected).length;
 
-      if (current.length >= MAX_SELECTED_CHARACTERS) {
-        return current;
-      }
+      return current.map((character) => {
+        if (character.id !== id) {
+          return character;
+        }
 
-      return [...current, id];
+        if (character.selected) {
+          return { ...character, selected: false };
+        }
+
+        if (currentSelectedCount >= MAX_SELECTED_CHARACTERS) {
+          return character;
+        }
+
+        return { ...character, selected: true };
+      });
     });
   };
 
   const handleContinue = () => {
-    if (
-      selectedIds.length < MIN_SELECTED_CHARACTERS ||
-      selectedIds.length > MAX_SELECTED_CHARACTERS
-    ) {
+    if (selectedCount < MIN_SELECTED_CHARACTERS || selectedCount > MAX_SELECTED_CHARACTERS) {
       return;
     }
 
-    campaignSetupStore.setStep2({
-      characters,
-      selectedCharacterIds: selectedIds,
-    });
-    onContinue?.(selectedIds);
+    campaignSetupStore.setStep2({ characters });
+    onContinue?.();
   };
 
-  const isSelectionLimitReached = selectedIds.length >= MAX_SELECTED_CHARACTERS;
+  const isSelectionLimitReached = selectedCount >= MAX_SELECTED_CHARACTERS;
 
   const isContinueDisabled =
-    selectedIds.length < MIN_SELECTED_CHARACTERS || selectedIds.length > MAX_SELECTED_CHARACTERS;
+    selectedCount < MIN_SELECTED_CHARACTERS || selectedCount > MAX_SELECTED_CHARACTERS;
 
   const updateHeroForm = (key: keyof NewHeroForm, value: string) => {
     setHeroForm((current) => ({ ...current, [key]: value }));
@@ -154,21 +155,21 @@ export const CampaignSetupStep2Screen = ({ onContinue, onBack }: CampaignSetupSt
       int: Number.parseInt(heroStats.int, 10),
     };
 
-    const newHero: CampaignCharacter = {
+    const newHero: CampaignSetupCharacter = {
       id: `custom-${Date.now()}`,
       name: heroForm.name.trim(),
       class: heroForm.archetype.trim(),
       stats,
       imageUri: DEFAULT_CUSTOM_HERO_IMAGE,
+      selected: false,
     };
 
-    setCharacters((current) => [...current, newHero]);
+    setCharacters((current) => {
+      const currentSelectedCount = current.filter((character) => character.selected).length;
+      const shouldSelect = currentSelectedCount < MAX_SELECTED_CHARACTERS;
 
-    if (selectedIds.length < MAX_SELECTED_CHARACTERS) {
-      setSelectedIds((current) =>
-        current.includes(newHero.id) ? current : [...current, newHero.id],
-      );
-    }
+      return [...current, { ...newHero, selected: shouldSelect }];
+    });
 
     resetHeroForm();
   };
@@ -193,19 +194,15 @@ export const CampaignSetupStep2Screen = ({ onContinue, onBack }: CampaignSetupSt
         </View>
 
         <View style={styles.characterList}>
-          {characters.map((character) => {
-            const isSelected = selectedIds.includes(character.id);
-
-            return (
-              <CharacterCard
-                key={character.id}
-                player={character}
-                selected={isSelected}
-                disabled={!isSelected && isSelectionLimitReached}
-                onPress={() => toggleCharacter(character.id)}
-              />
-            );
-          })}
+          {characters.map((character) => (
+            <CharacterCard
+              key={character.id}
+              player={character}
+              selected={character.selected}
+              disabled={!character.selected && isSelectionLimitReached}
+              onPress={() => toggleCharacter(character.id)}
+            />
+          ))}
         </View>
 
         <View style={styles.newHeroCard}>

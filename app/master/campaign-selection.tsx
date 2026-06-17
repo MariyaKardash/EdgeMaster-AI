@@ -20,6 +20,7 @@ import { defaultAlias } from '@/lib/holepunch/defaultAlias';
 import { sessionTopicHex } from '@/lib/holepunch/sessionTopicHex';
 import { CampaignSelectionScreen } from '@/screens/master/campaign-selection';
 import type { CampaignSessionInfo } from '@/screens/master/campaign-selection';
+import { campaignSetupStore } from '@/stores/campaign-setup-store';
 
 const formatLastPlayed = (isoDate: string) => {
   const deltaMs = Date.now() - new Date(isoDate).getTime();
@@ -64,6 +65,7 @@ const CampaignSelectionRoute = () => {
   });
 
   const handleStartNew = () => {
+    campaignSetupStore.reset();
     router.push('/master/campaign-setup/step-1');
   };
 

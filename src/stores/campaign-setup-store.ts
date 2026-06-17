@@ -13,7 +13,6 @@ const emptyStep1Fields: CampaignSetupStep1Fields = {
 
 const emptyStep2Fields: CampaignSetupStep2Fields = {
   characters: [],
-  selectedCharacterIds: [],
 };
 
 const emptyStep3Fields: CampaignSetupStep3Fields = {
@@ -24,7 +23,6 @@ export class CampaignSetupStore {
   name = emptyStep1Fields.name;
   description = emptyStep1Fields.description;
   characters = emptyStep2Fields.characters;
-  selectedCharacterIds = emptyStep2Fields.selectedCharacterIds;
   availableItemIds = emptyStep3Fields.availableItemIds;
 
   constructor() {
@@ -43,12 +41,10 @@ export class CampaignSetupStore {
 
   setStep2(values: CampaignSetupStep2Fields) {
     this.characters = values.characters;
-    this.selectedCharacterIds = values.selectedCharacterIds;
   }
 
   resetStep2() {
     this.characters = emptyStep2Fields.characters;
-    this.selectedCharacterIds = emptyStep2Fields.selectedCharacterIds;
   }
 
   setStep3(values: CampaignSetupStep3Fields) {
@@ -57,6 +53,12 @@ export class CampaignSetupStore {
 
   resetStep3() {
     this.availableItemIds = emptyStep3Fields.availableItemIds;
+  }
+
+  reset() {
+    this.resetStep1();
+    this.resetStep2();
+    this.resetStep3();
   }
 }
 

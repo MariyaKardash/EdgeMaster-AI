@@ -1,8 +1,9 @@
 import type { ArtifactItem } from '@/components/molecules/artifact-item-card';
 
 export type CampaignSetupStep3ScreenProps = {
-  onFinalize?: (availableItemIds: string[]) => void;
+  onFinalize?: () => void;
   onBack?: () => void;
+  isSubmitting?: boolean;
 };
 
 export type { ArtifactItem };

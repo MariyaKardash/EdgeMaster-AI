@@ -1,6 +1,7 @@
 export { CampaignSetupStep2Screen } from './campaign-setup-step2.screen';
 export {
   HEADER_TITLE,
+  MAX_SELECTED_CHARACTERS,
   MIN_SELECTED_CHARACTERS,
   MOCK_CHARACTERS,
 } from './campaign-setup-step2.constants';

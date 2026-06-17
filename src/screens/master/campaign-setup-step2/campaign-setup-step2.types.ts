@@ -15,6 +15,6 @@ export type NewHeroForm = {
 };
 
 export type CampaignSetupStep2ScreenProps = {
-  onContinue?: (selectedCharacterIds: string[]) => void;
+  onContinue?: () => void;
   onBack?: () => void;
 };

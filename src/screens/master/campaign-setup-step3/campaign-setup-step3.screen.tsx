@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, ScrollView, TextInput, View } from 'react-native';
 
 import { ArtifactItemCard, Button, Icon, Text, TextField } from '@/components';
@@ -26,18 +26,16 @@ import {
 import { styles } from './campaign-setup-step3.styles';
 import type { CampaignSetupStep3ScreenProps } from './campaign-setup-step3.types';
 
-export const CampaignSetupStep3Screen = ({ onFinalize, onBack }: CampaignSetupStep3ScreenProps) => {
+export const CampaignSetupStep3Screen = ({
+  onFinalize,
+  onBack,
+  isSubmitting = false,
+}: CampaignSetupStep3ScreenProps) => {
   const [availableIds, setAvailableIds] = useState<string[]>(() =>
     campaignSetupStore.availableItemIds.length > 0
       ? campaignSetupStore.availableItemIds
       : DEFAULT_AVAILABLE_ITEM_IDS,
   );
-
-  useEffect(() => {
-    return () => {
-      campaignSetupStore.resetStep3();
-    };
-  }, []);
 
   const toggleAvailability = (id: string, available: boolean) => {
     setAvailableIds((current) => {
@@ -50,13 +48,15 @@ export const CampaignSetupStep3Screen = ({ onFinalize, onBack }: CampaignSetupSt
   };
 
   const handleFinalize = () => {
-    if (availableIds.length < MIN_AVAILABLE_ITEMS) return;
+    if (availableIds.length < MIN_AVAILABLE_ITEMS || isSubmitting) {
+      return;
+    }
 
     campaignSetupStore.setStep3({ availableItemIds: availableIds });
-    onFinalize?.(availableIds);
+    onFinalize?.();
   };
 
-  const isFinalizeDisabled = availableIds.length < MIN_AVAILABLE_ITEMS;
+  const isFinalizeDisabled = availableIds.length < MIN_AVAILABLE_ITEMS || isSubmitting;
 
   return (
     <View style={styles.container}>

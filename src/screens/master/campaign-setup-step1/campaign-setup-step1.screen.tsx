@@ -1,5 +1,4 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { ScrollView, View } from 'react-native';
 
@@ -32,17 +31,11 @@ export function CampaignSetupStep1Screen({ onContinue, onBack }: CampaignSetupSt
   } = useForm<CampaignSetupStep1FormValues>({
     resolver: zodResolver(campaignSetupStep1Schema),
     defaultValues: {
-      name: '',
-      description: '',
+      name: campaignSetupStore.name,
+      description: campaignSetupStore.description,
     },
     mode: 'onSubmit',
   });
-
-  useEffect(() => {
-    return () => {
-      campaignSetupStore.resetStep1();
-    };
-  }, []);
 
   const onSubmit = (values: CampaignSetupStep1FormValues) => {
     campaignSetupStore.setStep1(values);

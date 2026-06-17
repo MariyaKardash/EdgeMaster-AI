@@ -60,13 +60,13 @@ export const campaignSetupCharacterSchema = z.object({
   class: z.string().trim().min(1),
   stats: characterStatsSchema,
   imageUri: z.url(),
+  selected: z.boolean(),
 });
 
 export type CampaignSetupCharacter = z.infer<typeof campaignSetupCharacterSchema>;
 
 export const campaignSetupStep2Schema = z.object({
   characters: z.array(campaignSetupCharacterSchema),
-  selectedCharacterIds: z.array(z.string()).min(3).max(5),
 });
 
 export type CampaignSetupStep2Fields = z.infer<typeof campaignSetupStep2Schema>;
