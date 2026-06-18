@@ -7,7 +7,7 @@ import { Text } from '@/components/atoms/text';
 import { styles } from './session-id-card.styles';
 import type { SessionIdCardProps } from './session-id-card.types';
 
-export const SessionIdCard = ({ sessionId, label = 'Topic Hex' }: SessionIdCardProps) => {
+export const SessionIdCard = ({ sessionId, label = 'Session Code' }: SessionIdCardProps) => {
   const [copied, setCopied] = useState(false);
   const cardScale = useMemo(() => new Animated.Value(1), []);
 

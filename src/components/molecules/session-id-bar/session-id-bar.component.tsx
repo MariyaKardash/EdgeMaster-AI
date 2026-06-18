@@ -9,7 +9,7 @@ import {
   COPY_ACCESSIBILITY_LABEL,
   COPY_FEEDBACK_DURATION_MS,
   COPY_LABEL,
-  TOPIC_HEX_LABEL,
+  SESSION_CODE_LABEL,
 } from './session-id-bar.constants';
 import { styles } from './session-id-bar.styles';
 import type { SessionIdBarProps } from './session-id-bar.types';
@@ -32,7 +32,7 @@ export const SessionIdBar = ({ sessionId }: SessionIdBarProps) => {
     <View style={styles.container}>
       <View style={styles.sessionInfo}>
         <Text variant="labelMd" style={styles.sessionLabel}>
-          {TOPIC_HEX_LABEL}
+          {SESSION_CODE_LABEL}
         </Text>
         <Text variant="codeMd" style={styles.sessionId} numberOfLines={1} ellipsizeMode="middle">
           {sessionId}

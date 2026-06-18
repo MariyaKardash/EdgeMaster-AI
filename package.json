@@ -9,7 +9,7 @@
     "preios": "npm run bundle:holepunch",
     "start": "npx kill-port 8081 && EXPO_NO_QR_CODE=1 expo start --dev-client --localhost",
     "start:diagnose": "EXPO_USE_METRO_REQUIRE=1 expo start --dev-client --clear",
-    "android": "REACT_NATIVE_PACKAGER_HOSTNAME=127.0.0.1 expo run:android",
+    "android": "REACT_NATIVE_PACKAGER_HOSTNAME=127.0.0.1 expo run:android --device",
     "ios": "expo run:ios",
     "prebuild": "expo prebuild",
     "prebuild:clean": "expo prebuild --clean",

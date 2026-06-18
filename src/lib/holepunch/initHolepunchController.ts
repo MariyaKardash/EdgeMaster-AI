@@ -55,9 +55,16 @@ export function initHolepunchController(listener: Listener): HolepunchController
       }
 
       try {
-        const event = JSON.parse(line) as HolepunchEvent;
-        logHolepunchEvent('ipc-in', event);
-        listener(event);
+        const event = JSON.parse(line) as { type: string; label?: string; data?: unknown };
+
+        if (event.type === 'log') {
+          logHolepunch('worklet', event.label ?? 'unknown', event.data);
+          continue;
+        }
+
+        const holepunchEvent = event as HolepunchEvent;
+        logHolepunchEvent('ipc-in', holepunchEvent);
+        listener(holepunchEvent);
       } catch (error) {
         const parseError = {
           type: 'error' as const,

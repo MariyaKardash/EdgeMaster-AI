@@ -4,9 +4,11 @@ import { Worklet } from 'react-native-bare-kit';
 import runtimeBundle from '@/lib/holepunch/bare/p2p.bundle.js';
 import { logHolepunch } from '@/lib/holepunch/logHolepunch';
 import { logHolepunchEvent } from '@/lib/holepunch/logHolepunchEvent';
+import { resolveJoinInput } from '@/lib/holepunch/resolveJoinInput';
 import { randomUUID } from '@/lib/randomUUID';
 
 import type { P2pDbValue, P2pWorkletClient, P2pWorkletCommand, P2pWorkletEvent } from './types';
+import { logDev } from '@/lib/logger';
 
 type BareIpc = {
   on(event: 'data', listener: (chunk: Uint8Array) => void): void;
@@ -16,6 +18,13 @@ type BareIpc = {
 type PendingRequest = {
   resolve: (value: unknown) => void;
   reject: (error: Error) => void;
+};
+
+type CampaignOpenedResult = {
+  campaignId: string;
+  coreKey: string;
+  discoveryKey: string;
+  writable: boolean;
 };
 
 const STORAGE_READY_MESSAGE = 'Storage ready.';
@@ -39,8 +48,28 @@ export function createP2pWorkletClient(storagePath: string): P2pWorkletClient {
   let storagePathValue = storagePath;
   let listeners = new Set<(event: P2pWorkletEvent) => void>();
   const pending = new Map<string, PendingRequest>();
+  let lastCampaignOpened: CampaignOpenedResult | null = null;
 
   const emit = (event: P2pWorkletEvent) => {
+    if (event.type === 'log') {
+      logHolepunch('worklet', event.label, event.data);
+      listeners.forEach((listener) => listener(event));
+      return;
+    }
+
+    if (event.type === 'campaign-opened') {
+      lastCampaignOpened = {
+        campaignId: event.campaignId,
+        coreKey: event.coreKey,
+        discoveryKey: event.discoveryKey,
+        writable: event.writable,
+      };
+    }
+
+    if (event.type === 'stopped' || event.type === 'campaign-closed') {
+      lastCampaignOpened = null;
+    }
+
     logHolepunchEvent('ipc-in', event);
     listeners.forEach((listener) => listener(event));
   };
@@ -302,6 +331,10 @@ export function createP2pWorkletClient(storagePath: string): P2pWorkletClient {
     async startSwarm(config) {
       await ensureReady();
 
+      const expectedTopicHex =
+        config.topicHex?.trim().toLowerCase() ??
+        (config.sessionCode ? resolveJoinInput(config.sessionCode).topicHex : undefined);
+
       return new Promise<void>((resolve, reject) => {
         const timeout = setTimeout(() => {
           unsubscribe();
@@ -309,14 +342,21 @@ export function createP2pWorkletClient(storagePath: string): P2pWorkletClient {
         }, 60_000);
 
         const unsubscribe = onEvent((event) => {
+          logDev('[startSwam.onEvent]', event);
+
           if (event.type === 'error') {
+            logDev('[startSwam.onEvent.error]', event);
             clearTimeout(timeout);
             unsubscribe();
             reject(new Error(event.message));
           }
 
           if (event.type === 'ready' && event.role === config.role) {
-            if (config.topicHex && event.topicHex !== config.topicHex.trim().toLowerCase()) {
+            logDev('[startSwam.onEvent.ready]', event, {
+              expectedTopicHex,
+              topicHex: event.topicHex,
+            });
+            if (expectedTopicHex && event.topicHex !== expectedTopicHex) {
               return;
             }
 
@@ -326,10 +366,15 @@ export function createP2pWorkletClient(storagePath: string): P2pWorkletClient {
           }
         });
 
+        logDev('[startSwam.onEvent.start-swarm]', config);
+
         send(ipc, {
           type: 'start-swarm',
-          ...config,
+          role: config.role,
+          alias: config.alias,
           ...(config.topicHex ? { topicHex: config.topicHex.trim().toLowerCase() } : {}),
+          ...(config.sessionCode ? { sessionCode: config.sessionCode.trim().toUpperCase() } : {}),
+          ...(config.campaignId ? { campaignId: config.campaignId.trim() } : {}),
         });
       });
     },
@@ -354,7 +399,13 @@ export function createP2pWorkletClient(storagePath: string): P2pWorkletClient {
     },
     onEvent,
     waitForCampaignOpened(timeoutMs = 30_000) {
-      return new Promise((resolve, reject) => {
+      if (lastCampaignOpened) {
+        const result = lastCampaignOpened;
+        lastCampaignOpened = null;
+        return Promise.resolve(result);
+      }
+
+      return new Promise<CampaignOpenedResult>((resolve, reject) => {
         const timeout = setTimeout(() => {
           unsubscribe();
           reject(new Error('Timed out waiting for campaign replication.'));
@@ -371,6 +422,7 @@ export function createP2pWorkletClient(storagePath: string): P2pWorkletClient {
           if (event.type === 'campaign-opened') {
             clearTimeout(timeout);
             unsubscribe();
+            lastCampaignOpened = null;
             resolve({
               campaignId: event.campaignId,
               coreKey: event.coreKey,

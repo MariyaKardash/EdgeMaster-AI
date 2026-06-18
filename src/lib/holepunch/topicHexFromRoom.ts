@@ -1,5 +1,5 @@
 export function topicHexFromRoom(room: string) {
-  const normalized = room.trim() || 'holepunch-playground';
+  const normalized = room.trim().toUpperCase() || 'holepunch-playground';
   const bytes = new Uint8Array(32);
 
   for (let index = 0; index < bytes.length; index += 1) {

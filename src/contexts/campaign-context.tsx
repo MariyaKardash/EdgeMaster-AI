@@ -20,6 +20,8 @@ import {
 import type { P2pWorkletClient, P2pWorkletEvent } from '@/database/p2p/types';
 import { getP2pStoragePath } from '@/database/p2p/storage-path';
 import { defaultAlias } from '@/lib/holepunch/defaultAlias';
+import { resolveJoinInput } from '@/lib/holepunch/resolveJoinInput';
+import { logDev } from '@/lib/logger';
 
 type ConnectionState = 'idle' | 'connecting' | 'connected' | 'error';
 
@@ -58,7 +60,7 @@ type CampaignContextValue = {
   createGameEvent: (input: Omit<GameEvent, 'id' | 'createdAt' | 'updatedAt'>) => Promise<GameEvent>;
   summarizeChapter: (chapterId: string, summary: string) => Promise<Chapter>;
   startMasterSession: (campaignId: string) => Promise<Session>;
-  joinPlayerSession: (topicHex: string, displayName?: string) => Promise<Session>;
+  joinPlayerSession: (joinInput: string, displayName?: string) => Promise<Session>;
   stopSession: () => Promise<void>;
 };
 
@@ -306,6 +308,7 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       await worklet.startSwarm({
         role: 'host',
         alias: defaultAlias(),
+        sessionCode: session.sessionCode,
       });
 
       setActiveSession(session);
@@ -315,33 +318,63 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const joinPlayerSession = useCallback(
-    async (topicHex: string, displayName = defaultAlias()) => {
+    async (joinInput: string, displayName = defaultAlias()) => {
       setError(null);
       setConnectionState('connecting');
 
+      const resolvedJoin = resolveJoinInput(joinInput);
+      let campaignOpened: ReturnType<P2pWorkletClient['waitForCampaignOpened']> | undefined;
+
       try {
-        const campaignOpened = worklet.waitForCampaignOpened();
-        const peerConnected = worklet.waitForPeer();
+        logDev(['joinPlayerSession.startSwarm'], 'start');
+
+        const peerConnected = worklet.waitForPeer(45_000);
+        campaignOpened = worklet.waitForCampaignOpened(45_000);
 
         await worklet.startSwarm({
           role: 'join',
           alias: displayName,
-          topicHex,
+          ...(resolvedJoin.kind === 'sessionCode'
+            ? { sessionCode: resolvedJoin.sessionCode }
+            : { topicHex: resolvedJoin.topicHex }),
         });
 
+        logDev(['joinPlayerSession.startSwarm'], 'wait for peer');
+
         await peerConnected;
+
+        logDev(['joinPlayerSession.startSwarm'], 'open campaign');
+
         await campaignOpened;
 
-        const session = await repository.getSessionByTopicHex(topicHex, { wait: true });
+        logDev(['joinPlayerSession.getSessionBy']);
+
+        const session =
+          resolvedJoin.kind === 'sessionCode'
+            ? await repository.getSessionByCode(resolvedJoin.sessionCode, { wait: true })
+            : await repository.getSessionByTopicHex(resolvedJoin.topicHex, { wait: true });
+
+        logDev(['joinPlayerSession.getSessionBy'], { session });
 
         if (!session) {
-          throw new Error('Session not found. Check the topic hex and try again.');
+          throw new Error('Session not found. Check the session code and try again.');
         }
+
+        logDev(['joinPlayerSession.registerPlayer'], { displayName });
 
         await repository.registerPlayer(session.id, displayName);
 
+        logDev(['joinPlayerSession.getCampaign'], 'get campaign');
+
         const campaign = await repository.getCampaign(session.campaignId);
+
+        logDev(['joinPlayerSession.getCampaign'], { campaign });
+
+        logDev(['joinPlayerSession.getActiveChapter'], 'get active chapter');
+
         const chapter = await repository.getActiveChapter(session.campaignId);
+
+        logDev(['joinPlayerSession.getActiveChapter'], { chapter });
 
         setActiveSession(session);
         setActiveCampaignState(campaign);
@@ -350,6 +383,12 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
         return session;
       } catch (joinError) {
         sessionActiveRef.current = false;
+
+        logDev(['joinPlayerSession.startSwarm'], 'error', { joinError });
+
+        void campaignOpened?.catch(() => {
+          // Ignore late rejection after an earlier join failure.
+        });
 
         try {
           await worklet.stopSwarm();
