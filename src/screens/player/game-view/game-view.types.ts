@@ -1,4 +1,4 @@
-import type { EventLogEntryData } from '@/components/molecules/combat-log-entry';
+import type { EventLogItemData } from '@/components/molecules/event-log-item';
 import type { PartyPlayer } from '@/components/molecules/party-player-card';
 import type { InventoryItem } from '@/screens/master/equip-hero';
 
@@ -15,5 +15,5 @@ export type GameViewScreenProps = {
   chapterImageUri?: string;
   partyPlayer?: PartyPlayer;
   inventoryItems?: InventoryItem[];
-  gameLog?: EventLogEntryData[];
+  gameLog?: EventLogItemData[];
 };

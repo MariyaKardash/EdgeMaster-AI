@@ -1,49 +1,75 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useUnistyles } from 'react-native-unistyles';
 
 import {
   Button,
-  CombatLogEntry,
+  EventLogItem,
   getSessionDashboardBottomNavHeight,
   Icon,
   SessionDashboardBottomNav,
   Text,
-  TextField,
 } from '@/components';
+import { DescriptionEditor } from '@/components/organisms/description-editor';
+import { useLiveControl } from '@/hooks/useLiveControl';
 import {
-  createEventLogEntry,
-  MOCK_EVENT_LOG,
+  DESCRIBE_EVENT_TITLE,
+  EMPTY_EVENTS_LOG_MESSAGE,
+  EVENT_DESCRIPTION_PLACEHOLDER,
+  EVENT_TITLE_PLACEHOLDER,
+  NEW_EVENT_LABEL,
   SUMMARIZE_END_CHAPTER_LABEL,
 } from './live-control.constants';
 import { styles } from './live-control.styles';
 import type { LiveControlScreenProps } from './live-control.types';
 
 export const LiveControlScreen = ({
-  liveSessionLabel = 'LIVE SESSION',
-  chapterTitle = 'The Sunken Marshes',
-  chapterSubtitle = 'Chapter IV: The Whispering Reeds',
-  logEntries: initialLogEntries = MOCK_EVENT_LOG,
-  onExecuteEvent,
+  chapterId,
   onSummarizeAndEndChapter,
   onTabPress,
 }: LiveControlScreenProps) => {
   const insets = useSafeAreaInsets();
-  const [description, setDescription] = useState('');
-  const [logEntries, setLogEntries] = useState(initialLogEntries);
+  const { theme } = useUnistyles();
+  const [isEventFormOpen, setIsEventFormOpen] = useState(false);
+  const [expandedEventId, setExpandedEventId] = useState<string | null>(null);
+  const {
+    chapter,
+    logEntries,
+    title,
+    setTitle,
+    description,
+    setDescription,
+    isLoading,
+    isExecuting,
+    isFixing,
+    isModelReady,
+    errorMessage,
+    dictationState,
+    onDictationPress,
+    handleFix,
+    handleExecuteEvent,
+  } = useLiveControl({ chapterId });
+
   const floatingSummaryBottom = getSessionDashboardBottomNavHeight(insets.bottom) + 16;
   const bottomPadding =
     getSessionDashboardBottomNavHeight(insets.bottom) + (onSummarizeAndEndChapter ? 96 : 24);
+  const canAddEvent = title.trim().length > 0 && description.trim().length > 0 && !isExecuting;
 
-  const handleExecuteEvent = () => {
-    const message = description.trim();
-    if (!message) {
-      return;
+  const handleCloseForm = () => {
+    setIsEventFormOpen(false);
+  };
+
+  const handleAddEvent = async () => {
+    const added = await handleExecuteEvent();
+    if (added) {
+      setIsEventFormOpen(false);
+      setExpandedEventId(null);
     }
+  };
 
-    setLogEntries((current) => [createEventLogEntry(message), ...current]);
-    setDescription('');
-    onExecuteEvent?.(message);
+  const handleEventPress = (eventId: string) => {
+    setExpandedEventId(eventId);
   };
 
   return (
@@ -58,69 +84,120 @@ export const LiveControlScreen = ({
       >
         <View style={styles.sessionHeader}>
           <Text variant="labelMd" style={styles.liveSessionLabel}>
-            {liveSessionLabel}
+            LIVE SESSION
           </Text>
-          <Text variant="headlineLgMobile" style={styles.chapterTitle}>
-            {chapterTitle}
-          </Text>
-          <View style={styles.chapterSubtitleRow}>
-            <Icon name="bookmark-border" size={18} color="onSurfaceVariant" />
-            <Text variant="bodyMd" style={styles.chapterSubtitle}>
-              {chapterSubtitle}
+          <View style={styles.chapterTitleRow}>
+            <Icon name="bookmark-border" size={28} color="onSurface" />
+            <Text variant="headlineLgMobile" style={styles.chapterTitle}>
+              {chapter?.title ?? 'Loading chapter…'}
             </Text>
           </View>
         </View>
 
-        <View style={styles.eventCard}>
-          <View style={styles.eventCardGlow} pointerEvents="none" />
+        {isEventFormOpen ? (
+          <View style={styles.eventCard}>
+            <View style={styles.eventCardGlow} pointerEvents="none" />
 
-          <Text variant="headlineMd" style={styles.sectionTitle}>
-            Add New Event
-          </Text>
-
-          <View style={styles.form}>
-            <View style={styles.field}>
-              <Text variant="labelMd" style={styles.fieldLabel}>
-                Event Description
+            <View style={styles.eventCardHeader}>
+              <Text variant="headlineMd" style={styles.sectionTitle}>
+                {DESCRIBE_EVENT_TITLE}
               </Text>
-              <TextField
+              <Pressable
+                style={styles.closeFormButton}
+                onPress={handleCloseForm}
+                accessibilityRole="button"
+                accessibilityLabel="Close event form"
+                hitSlop={8}
+              >
+                <Icon name="close" size={22} color="onSurfaceVariant" />
+              </Pressable>
+            </View>
+
+            <View style={styles.form}>
+              <TextInput
+                style={styles.eventTitleInput}
+                value={title}
+                onChangeText={setTitle}
+                placeholder={EVENT_TITLE_PLACEHOLDER}
+                placeholderTextColor={theme.colors.onSurfaceVariant}
+                cursorColor={theme.colors.primaryContainer}
+                selectionColor={theme.colors.primaryContainer}
+                autoCapitalize="sentences"
+                returnKeyType="next"
+              />
+              <DescriptionEditor
                 value={description}
                 onChangeText={setDescription}
-                placeholder="e.g. Goblin Boss lands a critical strike on Valerius."
-                multiline
-                numberOfLines={5}
-                inputStyle={styles.descriptionInput}
+                placeholder={EVENT_DESCRIPTION_PLACEHOLDER}
+                showDictation
+                dictationState={dictationState}
+                onDictationPress={onDictationPress}
+                isFixing={isFixing}
+                onFix={handleFix}
+                isModelReady={isModelReady}
+              />
+            </View>
+
+            {errorMessage ? (
+              <Text variant="bodyMd" style={styles.errorMessage}>
+                {errorMessage}
+              </Text>
+            ) : null}
+
+            <View style={styles.actions}>
+              <Button
+                title={isExecuting ? 'Adding…' : 'Add Event'}
+                icon="bolt"
+                fullWidth
+                disabled={!canAddEvent}
+                onPress={() => void handleAddEvent()}
               />
             </View>
           </View>
-
-          <View style={styles.actions}>
-            <Button
-              title="Execute Event"
-              icon="bolt"
-              fullWidth
-              disabled={!description.trim()}
-              onPress={handleExecuteEvent}
-            />
-          </View>
-        </View>
+        ) : (
+          <Pressable
+            style={({ pressed }) => [
+              styles.newEventButton,
+              pressed && styles.newEventButtonPressed,
+            ]}
+            onPress={() => setIsEventFormOpen(true)}
+            accessibilityRole="button"
+            accessibilityLabel={NEW_EVENT_LABEL}
+          >
+            <Icon name="add" size={20} color="primary" />
+            <Text variant="labelMd" style={styles.newEventButtonLabel}>
+              {NEW_EVENT_LABEL}
+            </Text>
+          </Pressable>
+        )}
 
         <View style={styles.logSection}>
           <View style={styles.logHeader}>
             <Icon name="history" size={24} color="primary" />
             <Text variant="headlineMd" style={styles.logTitle}>
-              Live Log
+              Events Log
             </Text>
           </View>
 
           <View style={styles.logContainer}>
-            {logEntries.map((entry, index) => (
-              <CombatLogEntry
-                key={entry.id}
-                entry={entry}
-                isLast={index === logEntries.length - 1}
-              />
-            ))}
+            {isLoading ? (
+              <ActivityIndicator size="small" color="primary" style={styles.logLoading} />
+            ) : logEntries.length === 0 ? (
+              <Text variant="bodyMd" style={styles.emptyLogMessage}>
+                {EMPTY_EVENTS_LOG_MESSAGE}
+              </Text>
+            ) : (
+              logEntries.map((entry, index) => (
+                <EventLogItem
+                  key={entry.id}
+                  entry={entry}
+                  isLast={index === logEntries.length - 1}
+                  isExpanded={expandedEventId === entry.id}
+                  onPress={() => handleEventPress(entry.id)}
+                  onCollapse={() => setExpandedEventId(null)}
+                />
+              ))
+            )}
           </View>
         </View>
       </ScrollView>

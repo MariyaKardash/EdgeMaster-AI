@@ -46,17 +46,39 @@ export const styles = StyleSheet.create((theme) => ({
     padding: theme.spacing.md,
     gap: theme.spacing.sm,
   },
+  headerPressable: {
+    borderRadius: theme.radius.sm,
+  },
+  headerPressablePressed: {
+    opacity: 0.78,
+  },
   headerRow: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: theme.spacing.sm,
+  },
+  title: {
+    flex: 1,
+    color: theme.colors.onSurface,
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: '600',
   },
   timestamp: {
     color: theme.colors.onSurfaceVariant,
     fontSize: 13,
     lineHeight: 18,
   },
-  message: {
+  body: {
     color: theme.colors.onSurfaceVariant,
     lineHeight: 22,
+  },
+  collapseFooter: {
+    alignItems: 'center',
+    paddingTop: theme.spacing.xs,
+  },
+  collapseButton: {
+    padding: theme.spacing.xs,
   },
 }));

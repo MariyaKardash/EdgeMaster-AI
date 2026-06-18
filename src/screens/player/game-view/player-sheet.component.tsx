@@ -6,8 +6,8 @@ import GorhomBottomSheet, {
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Pressable, View } from 'react-native';
 
-import { CombatLogEntry, Icon, PartyPlayerCard, Text } from '@/components';
-import type { EventLogEntryData } from '@/components/molecules/combat-log-entry';
+import { EventLogItem, Icon, PartyPlayerCard, Text } from '@/components';
+import type { EventLogItemData } from '@/components/molecules/event-log-item';
 import type { PartyPlayer } from '@/components/molecules/party-player-card';
 import { HeroInventoryList, MOCK_INVENTORY_ITEMS } from '@/screens/master/equip-hero';
 import type { InventoryItem } from '@/screens/master/equip-hero';
@@ -24,7 +24,7 @@ type PlayerSheetProps = {
   safeAreaBottom: number;
   partyPlayer?: PartyPlayer;
   inventoryItems?: InventoryItem[];
-  gameLog?: EventLogEntryData[];
+  gameLog?: EventLogItemData[];
 };
 
 const SHEET_TABS: {
@@ -166,7 +166,7 @@ export const PlayerSheet = ({
         {activeTab === 'history' ? (
           <View style={styles.historyTabContent}>
             {gameLog.map((entry, index) => (
-              <CombatLogEntry key={entry.id} entry={entry} isLast={index === gameLog.length - 1} />
+              <EventLogItem key={entry.id} entry={entry} isLast={index === gameLog.length - 1} />
             ))}
           </View>
         ) : null}

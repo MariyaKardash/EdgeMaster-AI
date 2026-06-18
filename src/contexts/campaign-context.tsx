@@ -55,6 +55,7 @@ type CampaignContextValue = {
   activateChapter: (campaignId: string, chapterId: string) => Promise<Chapter>;
   deleteChapter: (campaignId: string, chapterId: string) => Promise<void>;
   listGameEvents: (chapterId: string) => Promise<GameEvent[]>;
+  createGameEvent: (input: Omit<GameEvent, 'id' | 'createdAt' | 'updatedAt'>) => Promise<GameEvent>;
   summarizeChapter: (chapterId: string, summary: string) => Promise<Chapter>;
   startMasterSession: (campaignId: string) => Promise<Session>;
   joinPlayerSession: (topicHex: string, displayName?: string) => Promise<Session>;
@@ -279,6 +280,11 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
     [repository],
   );
 
+  const createGameEvent = useCallback(
+    (input: Omit<GameEvent, 'id' | 'createdAt' | 'updatedAt'>) => repository.createGameEvent(input),
+    [repository],
+  );
+
   const summarizeChapter = useCallback(
     async (chapterId: string, summary: string) => {
       const result = await repository.summarizeChapter(chapterId, summary);
@@ -397,6 +403,7 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       activateChapter,
       deleteChapter,
       listGameEvents,
+      createGameEvent,
       summarizeChapter,
       startMasterSession,
       joinPlayerSession,
@@ -428,6 +435,7 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       activateChapter,
       deleteChapter,
       listGameEvents,
+      createGameEvent,
       summarizeChapter,
       startMasterSession,
       joinPlayerSession,
