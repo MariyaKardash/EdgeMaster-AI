@@ -1,9 +1,12 @@
-import { completion } from '@qvac/sdk';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useCampaign } from '@/contexts/campaign-context';
-import type { Chapter, GameEvent } from '@/database';
-import { FIX_SYSTEM_PROMPT } from '@/screens/master/new-chapter/new-chapter.constants';
+import type { Chapter } from '@/database';
+import { CHAPTER_SUMMARY_CTX_SIZE } from '@/screens/master/chapter-summarize/chapter-summarize.prompts';
+import {
+  fixChapterSummary,
+  generateChapterSummary,
+} from '@/screens/master/chapter-summarize/chapter-summarize.utils';
 import { useLLMModel, type LLMModelStatus } from './useLLMModel';
 import { useTranscription } from './useTranscription';
 
@@ -31,41 +34,6 @@ type Params = {
   onSaved: () => void;
 };
 
-type SummaryPrompt = {
-  systemContent: string;
-  userContent: string;
-};
-
-function buildSummaryPrompt(chapter: Chapter, events: GameEvent[]): SummaryPrompt {
-  const hasEvents = events.length > 0;
-
-  const eventLines = hasEvents
-    ? events
-        .map((e, i) => `${i + 1}. [${e.type.toUpperCase()}] ${e.title}: ${e.body}`.trim())
-        .join('\n')
-    : null;
-
-  const contextNote = hasEvents
-    ? `Use the chapter background only for context (names, setting, tone). ` +
-      `The summary must be driven by the events — they represent what actually happened at the table.`
-    : `Use the chapter background below as the sole source.`;
-
-  const systemContent =
-    `You are a chronicler for a tabletop RPG campaign. ` +
-    `Write a vivid narrative summary in 2–3 paragraphs of plain prose. ` +
-    `Use past tense. Output plain prose only — no titles, no headings, no bold labels, ` +
-    `no markdown formatting of any kind, no bullet points. ` +
-    `Begin directly with the first sentence of the narrative.`;
-
-  const userContent =
-    `${contextNote}\n\n` +
-    `Chapter title: ${chapter.title}\n` +
-    `Chapter background: ${chapter.description}\n\n` +
-    (eventLines ? `Events that took place:\n${eventLines}` : '');
-
-  return { systemContent, userContent };
-}
-
 export function useChapterSummarize({ chapterId, onSaved }: Params): UseChapterSummarizeResult {
   const { getChapter, listGameEvents, summarizeChapter } = useCampaign();
 
@@ -83,9 +51,8 @@ export function useChapterSummarize({ chapterId, onSaved }: Params): UseChapterS
     onError: (msg) => setErrorMessage(msg),
   });
 
-  const llm = useLLMModel({ ctxSize: 2048 });
+  const llm = useLLMModel({ ctxSize: CHAPTER_SUMMARY_CTX_SIZE });
 
-  // mountedRef guards async state updates in generate / fix / save after unmount
   const mountedRef = useRef(true);
   useEffect(() => {
     mountedRef.current = true;
@@ -94,12 +61,10 @@ export function useChapterSummarize({ chapterId, onSaved }: Params): UseChapterS
     };
   }, []);
 
-  // Keep refs so the auto-generate effect always sees fresh values
   const chapterRef = useRef<Chapter | null>(null);
-  const eventsRef = useRef<GameEvent[]>([]);
+  const eventsRef = useRef<Awaited<ReturnType<typeof listGameEvents>>>([]);
   const hasTriggeredRef = useRef(false);
 
-  // Load chapter + events
   useEffect(() => {
     let cancelled = false;
 
@@ -132,13 +97,12 @@ export function useChapterSummarize({ chapterId, onSaved }: Params): UseChapterS
     };
   }, [chapterId, getChapter, listGameEvents]);
 
-  // Auto-generate as soon as model is ready and data is loaded — only if events exist
   useEffect(() => {
     if (
       !llm.isReady ||
       isLoadingData ||
       !chapterRef.current ||
-      eventsRef.current.length === 0 || // skip if no events — DM must write manually
+      eventsRef.current.length === 0 ||
       hasTriggeredRef.current
     ) {
       return;
@@ -154,33 +118,16 @@ export function useChapterSummarize({ chapterId, onSaved }: Params): UseChapterS
       setSummaryText('');
 
       try {
-        const { systemContent, userContent } = buildSummaryPrompt(
-          chapterRef.current!,
-          eventsRef.current,
-        );
-
-        const genRun = completion({
+        const { summary } = await generateChapterSummary({
           modelId,
-          history: [
-            { role: 'system', content: systemContent },
-            { role: 'user', content: userContent },
-            // Prefill forces the model to continue mid-sentence, preventing a title as the first token
-            { role: 'assistant', content: 'The' },
-          ],
-          stream: true,
+          chapter: chapterRef.current!,
+          events: eventsRef.current,
+          onDelta: (text) => {
+            if (mountedRef.current) setSummaryText(text);
+          },
         });
 
-        let acc = 'The';
-        for await (const event of genRun.events) {
-          if (event.type === 'contentDelta') {
-            acc += event.text;
-            if (mountedRef.current) setSummaryText(acc);
-          }
-        }
-
-        // Strip any leading bold/heading line the model may still have produced
-        const cleaned = acc.replace(/^\*{1,3}[^*\n]+\*{1,3}\n?/, '').trimStart();
-        if (cleaned !== acc && mountedRef.current) setSummaryText(cleaned);
+        if (mountedRef.current) setSummaryText(summary);
       } catch (e) {
         if (mountedRef.current) {
           setErrorMessage(e instanceof Error ? e.message : 'Generation failed.');
@@ -211,20 +158,8 @@ export function useChapterSummarize({ chapterId, onSaved }: Params): UseChapterS
     setIsFixing(true);
     setErrorMessage(null);
     try {
-      const run = completion({
-        modelId,
-        history: [
-          { role: 'system', content: FIX_SYSTEM_PROMPT },
-          { role: 'user', content: summaryText },
-        ],
-        stream: true,
-      });
-
-      let result = '';
-      for await (const event of run.events) {
-        if (event.type === 'contentDelta') result += event.text;
-      }
-      if (result.trim() && mountedRef.current) setSummaryText(result.trim());
+      const fixed = await fixChapterSummary(modelId, summaryText);
+      if (fixed && mountedRef.current) setSummaryText(fixed);
     } catch (e) {
       if (mountedRef.current) {
         setErrorMessage(e instanceof Error ? e.message : 'Format failed.');
