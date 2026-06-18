@@ -11,6 +11,7 @@ export type SessionDashboardScreenProps = {
   activeChapterDescription?: string;
   activeChapterImageUri?: string;
   connectedPlayers?: ConnectedPlayer[];
+  connectedPeerCount?: number;
   onStartSession?: () => void;
   onOpenChapter?: () => void;
   onPlayerPress?: (player: ConnectedPlayer) => void;

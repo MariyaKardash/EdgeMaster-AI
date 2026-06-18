@@ -57,6 +57,10 @@ function playerIdFromDbKey(key: string) {
   return key.startsWith('@player/') ? key.slice('@player/'.length) : undefined;
 }
 
+function excludeLocalPlayer(players: ConnectedPlayer[], localPlayerId?: string | null) {
+  return localPlayerId ? players.filter((player) => player.id !== localPlayerId) : players;
+}
+
 const SessionDashboardRoute = () => {
   const router = useRouter();
   const campaignId = useCampaignId();
@@ -68,6 +72,7 @@ const SessionDashboardRoute = () => {
     activeChapter,
     connectedPeers,
     connectionState,
+    localPlayerId,
     worklet,
     setError,
     setActiveCampaign,
@@ -255,8 +260,10 @@ const SessionDashboardRoute = () => {
     };
   }, [connectedPeers, connectionState, fetchPlayers, hostedSessionId, worklet]);
 
-  const displayedConnectedPlayers =
-    connectionState === 'connected' && hostedSessionId ? connectedPlayers : [];
+  const remoteConnectedPlayers =
+    connectionState === 'connected' && hostedSessionId
+      ? excludeLocalPlayer(connectedPlayers, localPlayerId)
+      : [];
 
   const handleStartSession = async () => {
     if (!ready || !campaignId || isStartingSession || isHostingCurrentCampaign) {
@@ -438,7 +445,8 @@ const SessionDashboardRoute = () => {
       isStartingSession={isStartingSession}
       activeChapterTitle={activeChapter?.title}
       activeChapterDescription={activeChapter?.description}
-      connectedPlayers={displayedConnectedPlayers}
+      connectedPlayers={remoteConnectedPlayers}
+      connectedPeerCount={connectedPeers}
       onStartSession={() => void handleStartSession()}
       campaignName={activeCampaign?.name}
       onOpenChapter={

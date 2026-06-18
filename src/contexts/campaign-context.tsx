@@ -31,6 +31,7 @@ type CampaignContextValue = {
   error: string | null;
   connectionState: ConnectionState;
   connectedPeers: number;
+  localPlayerId: string | null;
   campaigns: Campaign[];
   activeCampaign: Campaign | null;
   activeChapter: Chapter | null;
@@ -83,6 +84,7 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
   const [connectionState, setConnectionState] = useState<ConnectionState>('idle');
   const [connectedPeers, setConnectedPeers] = useState(0);
+  const [localPlayerId, setLocalPlayerId] = useState<string | null>(null);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [activeCampaign, setActiveCampaign] = useState<Campaign | null>(null);
   const [activeChapter, setActiveChapter] = useState<Chapter | null>(null);
@@ -356,7 +358,8 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
 
         logDev(['joinPlayerSession.registerPlayer'], { displayName });
 
-        await repository.registerPlayer(session.id, displayName);
+        const player = await repository.registerPlayer(session.id, displayName);
+        setLocalPlayerId(player.id);
 
         logDev(['joinPlayerSession.getCampaign'], 'get campaign');
 
@@ -406,6 +409,7 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
     sessionActiveRef.current = false;
     setConnectionState('idle');
     setConnectedPeers(0);
+    setLocalPlayerId(null);
     setActiveSession(null);
   }, [activeSession, repository, worklet]);
 
@@ -416,6 +420,7 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       error,
       connectionState,
       connectedPeers,
+      localPlayerId,
       campaigns,
       activeCampaign,
       activeChapter,
@@ -447,6 +452,7 @@ export const CampaignProvider = ({ children }: { children: ReactNode }) => {
       error,
       connectionState,
       connectedPeers,
+      localPlayerId,
       campaigns,
       activeCampaign,
       activeChapter,
