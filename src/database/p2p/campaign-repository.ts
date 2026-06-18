@@ -245,6 +245,8 @@ export class CampaignRepository {
       throw new Error('Chapter not found.');
     }
 
+    await this.deleteGameEventsForChapter(chapterId);
+
     await this.worklet.del(dbKeys.chapter(chapterId));
     await this.worklet.del(`${dbKeys.indexChaptersByCampaign(campaignId)}${chapter.order}`);
 
@@ -738,6 +740,21 @@ export class CampaignRepository {
     events.sort((left, right) => left.createdAt.localeCompare(right.createdAt));
     this.log('listGameEvents:result', { chapterId, count: events.length });
     return events;
+  }
+
+  private async deleteGameEventsForChapter(chapterId: string) {
+    this.log('deleteGameEventsForChapter', { chapterId });
+    const entries = await this.worklet.list<string>(
+      dbKeys.indexEventsByChapter(chapterId),
+      dbPrefixEnd(dbKeys.indexEventsByChapter(chapterId)),
+    );
+
+    for (const entry of entries) {
+      await this.worklet.del(dbKeys.gameEvent(entry.value));
+      await this.worklet.del(entry.key);
+    }
+
+    this.log('deleteGameEventsForChapter:result', { chapterId, count: entries.length });
   }
 
   async getActiveChapter(campaignId: string) {

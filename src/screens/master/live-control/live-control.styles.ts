@@ -24,16 +24,14 @@ export const styles = StyleSheet.create((theme) => ({
     letterSpacing: 1.5,
     textTransform: 'uppercase',
   },
-  chapterTitle: {
-    color: theme.colors.onSurface,
-  },
-  chapterSubtitleRow: {
+  chapterTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: theme.spacing.sm,
   },
-  chapterSubtitle: {
-    color: theme.colors.onSurfaceVariant,
+  chapterTitle: {
+    flex: 1,
+    color: theme.colors.onSurface,
   },
   eventCard: {
     backgroundColor: theme.colors.surfaceContainerHigh,
@@ -43,6 +41,33 @@ export const styles = StyleSheet.create((theme) => ({
     padding: theme.spacing.containerMargin,
     overflow: 'hidden',
     gap: theme.spacing.md,
+  },
+  newEventButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: theme.spacing.sm,
+    backgroundColor: theme.colors.surfaceContainerHigh,
+    borderRadius: theme.radius.full,
+    borderWidth: 1,
+    borderColor: withAlphaHex('primaryContainer', 0.2),
+    paddingVertical: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+  },
+  newEventButtonPressed: {
+    opacity: 0.78,
+  },
+  newEventButtonLabel: {
+    color: theme.colors.primary,
+  },
+  eventCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: theme.spacing.sm,
+  },
+  closeFormButton: {
+    padding: theme.spacing.xs,
   },
   eventCardGlow: {
     position: 'absolute',
@@ -57,17 +82,19 @@ export const styles = StyleSheet.create((theme) => ({
     color: theme.colors.onBackground,
   },
   form: {
-    gap: theme.spacing.lg,
+    gap: theme.spacing.md,
   },
-  field: {
-    gap: theme.spacing.sm,
-  },
-  fieldLabel: {
-    color: theme.colors.onSurfaceVariant,
-  },
-  descriptionInput: {
-    minHeight: 128,
-    textAlignVertical: 'top',
+  eventTitleInput: {
+    backgroundColor: theme.colors.surfaceContainerLow,
+    borderRadius: theme.radius.lg,
+    borderWidth: 1,
+    borderColor: withAlphaHex('outlineVariant', 0.5),
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
+    color: theme.colors.onSurface,
+    fontFamily: theme.textStyles.bodyMd.fontFamily,
+    fontSize: theme.textStyles.bodyMd.fontSize,
+    lineHeight: theme.textStyles.bodyMd.lineHeight,
   },
   actions: {
     borderTopWidth: 1,
@@ -87,6 +114,16 @@ export const styles = StyleSheet.create((theme) => ({
   },
   logContainer: {
     gap: 0,
+  },
+  errorMessage: {
+    color: theme.colors.error,
+  },
+  logLoading: {
+    paddingVertical: theme.spacing.lg,
+  },
+  emptyLogMessage: {
+    color: theme.colors.onSurfaceVariant,
+    paddingVertical: theme.spacing.md,
   },
   floatingSummaryContainer: {
     position: 'absolute',
