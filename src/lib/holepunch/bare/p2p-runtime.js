@@ -1,12 +1,15 @@
 const Corestore = require('corestore');
 const Hyperbee = require('hyperbee');
+const Hypercore = require('hypercore');
 const Hyperswarm = require('hyperswarm');
 const b4a = require('b4a');
+const c = require('compact-encoding');
 
 const { IPC } = BareKit;
 
 const LOCAL_STORE_NAME = 'local-index';
 const SESSION_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const CONTROL_PROTOCOL = 'dd-ai-control';
 
 let store = null;
 let localBee = null;
@@ -40,6 +43,7 @@ IPC.on('data', (chunk) => {
     try {
       message = JSON.parse(line);
     } catch (error) {
+      log('[IPC]', 'invalid command line', { line }, error.message);
       send({
         type: 'error',
         message: `Invalid command: ${error.message}`,
@@ -47,7 +51,15 @@ IPC.on('data', (chunk) => {
       continue;
     }
 
+    log('[IPC]', 'received command', message);
+
     handleCommand(message).catch((error) => {
+      log(
+        '[IPC]',
+        'command failed',
+        { type: message.type, requestId: message.requestId },
+        error.message,
+      );
       send({
         type: 'error',
         message: error && error.message ? error.message : String(error),
@@ -58,7 +70,7 @@ IPC.on('data', (chunk) => {
 });
 
 async function handleCommand(message) {
-  log('command', message);
+  log('[handleCommand]', message);
 
   switch (message.type) {
     case 'init':
@@ -86,6 +98,7 @@ async function handleCommand(message) {
       await startSwarm(message);
       break;
     case 'stop-swarm':
+      log('[handleCommand]', 'stopping swarm');
       await stopSwarm();
       send({ type: 'stopped' });
       break;
@@ -96,10 +109,12 @@ async function handleCommand(message) {
       broadcastChat(message);
       break;
     case 'stop':
+      log('[handleCommand]', 'stopping swarm (legacy stop command)');
       await stopSwarm();
       send({ type: 'stopped' });
       break;
     default:
+      log('[handleCommand]', 'unknown command type', message.type);
       send({
         type: 'error',
         message: `Unknown command type: ${message.type}`,
@@ -147,64 +162,93 @@ function campaignTopicHex(campaignId) {
 }
 
 function resolveTopicHex(message, role) {
+  log('[resolveTopicHex]', { role, activeCampaignId });
+
   if (role === 'host') {
     if (!activeCampaignId) {
       throw new Error('Open a campaign before hosting a session.');
     }
 
-    return campaignTopicHex(activeCampaignId);
+    const sessionCode = message.sessionCode ? String(message.sessionCode).trim().toUpperCase() : '';
+
+    if (sessionCode) {
+      const resolved = topicHexFromRoom(sessionCode);
+      log('[resolveTopicHex]', 'host topic from session code', { sessionCode }, resolved);
+      return resolved;
+    }
+
+    const topicHex = campaignTopicHex(activeCampaignId);
+    log('[resolveTopicHex]', 'host topic from active campaign', { activeCampaignId }, topicHex);
+    return topicHex;
   }
 
   const topicHex = message.topicHex ? String(message.topicHex).trim().toLowerCase() : '';
   const sessionCode = message.sessionCode ? String(message.sessionCode).trim().toUpperCase() : '';
   const campaignId = message.campaignId ? String(message.campaignId).trim() : '';
 
+  log('[resolveTopicHex]', 'join inputs', { topicHex, sessionCode, campaignId });
+
   if (/^[0-9a-f]{64}$/.test(topicHex)) {
+    log('[resolveTopicHex]', 'using explicit topic hex', topicHex);
     return topicHex;
   }
 
   if (sessionCode) {
-    return topicHexFromRoom(sessionCode);
+    const resolved = topicHexFromRoom(sessionCode);
+    log('[resolveTopicHex]', 'using session code', { sessionCode }, resolved);
+    return resolved;
   }
 
   if (campaignId) {
-    return campaignTopicHex(campaignId);
+    const resolved = campaignTopicHex(campaignId);
+    log('[resolveTopicHex]', 'using campaign id', { campaignId }, resolved);
+    return resolved;
   }
 
   throw new Error('Topic hex, session code, or campaign id is required to join.');
 }
 
 async function initStorage(message) {
+  log('[initStorage]', 'starting', message);
+
   const storagePath = normalizeStoragePath(message.storagePath);
 
   if (!storagePath) {
     throw new Error('Storage path is required.');
   }
 
+  log('[initStorage]', 'normalized storage path', storagePath);
+
   await closeCampaign();
-  await stopSwarm();
+  await destroySwarmFully();
 
   if (store) {
+    log('[initStorage]', 'closing existing store');
     await store.close();
   }
 
-  // initialize corestore on disk
+  log('[initStorage]', 'creating corestore');
   store = new Corestore(storagePath);
   await store.ready();
-  // run specific storage by name from this folder
+
+  log('[initStorage]', 'opening local core', { name: LOCAL_STORE_NAME });
   const localCore = store.get({ name: LOCAL_STORE_NAME });
   await localCore.ready();
-  // turn storage into table of contents like db
+
+  log('[initStorage]', 'creating local hyperbee');
   localBee = new Hyperbee(localCore, {
     keyEncoding: 'utf-8',
     valueEncoding: 'json',
   });
   await localBee.ready();
 
+  log('[initStorage]', 'storage ready');
   send({ type: 'status', message: 'Storage ready.' });
 }
 
 async function openCampaign(message, options = {}) {
+  log('[openCampaign]', 'starting', { message, options });
+
   ensureStore();
 
   const campaignId = String(message.campaignId || '').trim();
@@ -215,7 +259,11 @@ async function openCampaign(message, options = {}) {
     throw new Error('Campaign id is required.');
   }
 
+  log('[openCampaign]', { campaignId, coreKeyHex, silent, activeCampaignId });
+
   if (activeCampaignId === campaignId && campaignBee && campaignCore && !coreKeyHex) {
+    log('[openCampaign]', 'campaign already open, reusing');
+
     if (swarm) {
       attachReplicationToPeers();
     }
@@ -234,22 +282,30 @@ async function openCampaign(message, options = {}) {
   }
 
   if (activeCampaignId !== campaignId) {
+    log('[openCampaign]', 'closing previous campaign', { activeCampaignId });
     await closeCampaign({ silent: true });
   }
 
   if (coreKeyHex) {
+    log('[openCampaign]', 'opening campaign by core key');
     campaignCore = store.get({ key: b4a.from(coreKeyHex, 'hex') });
   } else {
-    // copied to other devices when they connect
+    log('[openCampaign]', 'opening campaign by name', { name: `campaign-${campaignId}` });
     campaignCore = store.get({ name: `campaign-${campaignId}` });
   }
 
   await campaignCore.ready();
+  log('[openCampaign]', 'campaign core ready', {
+    writable: campaignCore.writable,
+    discoveryKey: b4a.toString(campaignCore.discoveryKey, 'hex'),
+  });
 
   if (campaignBee) {
+    log('[openCampaign]', 'closing previous campaign bee');
     await campaignBee.close();
   }
 
+  log('[openCampaign]', 'creating campaign hyperbee');
   campaignBee = new Hyperbee(campaignCore, {
     keyEncoding: 'utf-8',
     valueEncoding: 'json',
@@ -259,6 +315,10 @@ async function openCampaign(message, options = {}) {
   activeCampaignId = campaignId;
 
   if (swarm) {
+    log('[openCampaign]', 'attaching replication and joining campaign discovery', {
+      currentRole,
+      peerCount: peers.size,
+    });
     attachReplicationToPeers();
     if (campaignDiscovery) {
       await campaignDiscovery.destroy();
@@ -270,6 +330,7 @@ async function openCampaign(message, options = {}) {
   }
 
   if (!silent) {
+    log('[openCampaign]', 'emitting campaign-opened');
     send({
       type: 'campaign-opened',
       campaignId,
@@ -278,15 +339,21 @@ async function openCampaign(message, options = {}) {
       writable: campaignCore.writable,
     });
   }
+
+  log('[openCampaign]', 'done', { campaignId, activeCampaignId });
 }
 
 async function closeCampaign(message = {}) {
+  log('[closeCampaign]', 'starting', { activeCampaignId, message });
+
   if (campaignDiscovery) {
+    log('[closeCampaign]', 'destroying campaign discovery');
     await campaignDiscovery.destroy();
     campaignDiscovery = null;
   }
 
   if (campaignBee) {
+    log('[closeCampaign]', 'closing campaign bee');
     await campaignBee.close();
   }
 
@@ -295,11 +362,14 @@ async function closeCampaign(message = {}) {
   activeCampaignId = null;
 
   if (message.requestId) {
+    log('[closeCampaign]', 'emitting campaign-closed', { requestId: message.requestId });
     send({
       type: 'campaign-closed',
       requestId: message.requestId,
     });
   }
+
+  log('[closeCampaign]', 'done');
 }
 
 function activeBeeForKey(key) {
@@ -320,13 +390,39 @@ function activeBeeForKey(key) {
   return campaignBee;
 }
 
-function attachReplicationToPeers() {
-  if (!campaignCore) {
+function getOrCreateMux(socket) {
+  Hypercore.createProtocolStream(socket);
+  return socket.userData;
+}
+
+function sendControl(peer, packet) {
+  if (!peer || typeof peer.sendControl !== 'function') {
+    log('[sendControl]', 'control channel not ready', { peerId: peer?.id });
     return;
   }
 
+  peer.sendControl(JSON.stringify(packet));
+}
+
+function attachReplicationToPeer(peer) {
+  if (!campaignCore || !peer?.socket) {
+    return;
+  }
+
+  const mux = getOrCreateMux(peer.socket);
+  campaignCore.replicate(mux);
+}
+
+function attachReplicationToPeers() {
+  if (!campaignCore) {
+    log('[attachReplicationToPeers]', 'skipped, no campaign core');
+    return;
+  }
+
+  log('[attachReplicationToPeers]', 'replicating to peers', { peerCount: peers.size });
+
   for (const peer of peers.values()) {
-    campaignCore.replicate(peer.socket);
+    attachReplicationToPeer(peer);
   }
 }
 
@@ -335,29 +431,145 @@ function buildSessionInfoPacket() {
     return null;
   }
 
-  return (
-    JSON.stringify({
-      type: 'session-info',
-      campaignId: activeCampaignId,
-      coreKey: b4a.toString(campaignCore.key, 'hex'),
-    }) + '\n'
-  );
+  return {
+    type: 'session-info',
+    campaignId: activeCampaignId,
+    coreKey: b4a.toString(campaignCore.key, 'hex'),
+  };
 }
 
-function sendSessionInfo(socket) {
+function sendSessionInfo(peer) {
   const packet = buildSessionInfoPacket();
 
   if (!packet) {
+    log('[sendSessionInfo]', 'skipped, no session info packet');
     return;
   }
 
-  socket.write(b4a.from(packet));
+  log('[sendSessionInfo]', 'writing session info', { activeCampaignId });
+  sendControl(peer, packet);
+}
+
+function handlePeerControlLine(peer, line) {
+  const peerId = peer.id;
+
+  if (!line) {
+    return;
+  }
+
+  try {
+    const packet = JSON.parse(line);
+
+    log('[startSwarm]', 'peer packet', { peerId, type: packet.type });
+
+    if (packet.type === 'request-session-info' && currentRole === 'host') {
+      sendSessionInfo(peer);
+      return;
+    }
+
+    if (packet.type === 'session-info' && currentRole !== 'host') {
+      log('[startSwarm]', 'received session info', { peerId, campaignId: packet.campaignId });
+      handleSessionInfo(packet).catch((error) => {
+        log('[startSwarm]', 'session info handling failed', { peerId }, error.message);
+        send({
+          type: 'error',
+          message: error.message,
+        });
+      });
+      return;
+    }
+
+    if (packet.type === 'remote-put' && currentRole === 'host') {
+      log('[startSwarm]', 'remote put request', {
+        peerId,
+        requestId: packet.requestId,
+        key: packet.key,
+      });
+      handleRemotePut(packet, peer).catch((error) => {
+        log(
+          '[startSwarm]',
+          'remote put failed',
+          { peerId, requestId: packet.requestId },
+          error.message,
+        );
+        sendControl(peer, {
+          type: 'remote-put-result',
+          requestId: packet.requestId,
+          ok: false,
+          message: error.message,
+        });
+      });
+      return;
+    }
+
+    if (packet.type === 'remote-put-result' && currentRole === 'join') {
+      log('[startSwarm]', 'remote put result', {
+        peerId,
+        requestId: packet.requestId,
+        ok: packet.ok,
+      });
+      handleRemotePutResult(packet);
+      return;
+    }
+
+    if (packet.type === 'chat') {
+      log('[startSwarm]', 'inbound chat', { peerId, author: packet.author });
+      send({
+        type: 'chat',
+        peerId,
+        author: packet.author || peerId,
+        text: packet.text || '',
+        inbound: true,
+      });
+    }
+  } catch (error) {
+    log('[startSwarm]', 'malformed peer packet', { peerId }, error.message);
+  }
+}
+
+function setupPeerControl(peer) {
+  const mux = getOrCreateMux(peer.socket);
+  peer.mux = mux;
+
+  const channel = mux.createChannel({
+    protocol: CONTROL_PROTOCOL,
+    onopen() {
+      log('[setupPeerControl]', 'control channel open', { peerId: peer.id });
+
+      if (currentRole === 'host') {
+        sendSessionInfo(peer);
+      }
+
+      if (currentRole === 'join') {
+        sendControl(peer, { type: 'request-session-info' });
+      }
+    },
+  });
+
+  if (!channel) {
+    log('[setupPeerControl]', 'failed to create control channel', { peerId: peer.id });
+    return;
+  }
+
+  const controlMessage = channel.addMessage({
+    encoding: c.string,
+    onmessage(line) {
+      handlePeerControlLine(peer, line);
+    },
+  });
+
+  peer.sendControl = (payload) => controlMessage.send(payload);
+  peer.controlChannel = channel;
+  channel.open();
 }
 
 function emitCampaignOpened() {
   if (!campaignCore || !activeCampaignId) {
+    log('[emitCampaignOpened]', 'skipped, campaign not ready');
     return;
   }
+
+  log('[emitCampaignOpened]', { activeCampaignId, writable: campaignCore.writable });
 
   send({
     type: 'campaign-opened',
@@ -370,10 +582,14 @@ function emitCampaignOpened() {
 
 function scheduleCampaignSync() {
   if (!campaignCore) {
+    log('[scheduleCampaignSync]', 'skipped, no campaign core');
     return;
   }
 
+  log('[scheduleCampaignSync]', 'updating campaign core');
+
   void campaignCore.update().catch((error) => {
+    log('[scheduleCampaignSync]', 'update failed', error.message);
     send({
       type: 'status',
       message: `Campaign sync warning: ${error.message}`,
@@ -386,13 +602,17 @@ async function putRecord(message, options = {}) {
   const requestId = message.requestId;
   const fromRemote = options.fromRemote === true;
 
+  log('[putRecord]', { key, requestId, fromRemote, currentRole });
+
   if (!fromRemote && campaignCore && !campaignCore.writable && currentRole === 'join') {
+    log('[putRecord]', 'delegating write to host');
     await requestHostPut(message);
     return;
   }
 
   const bee = activeBeeForKey(key);
 
+  log('[putRecord]', 'writing to bee', { key });
   await bee.put(key, message.value);
 
   send({
@@ -414,6 +634,8 @@ async function putRecord(message, options = {}) {
 async function requestHostPut(message) {
   const requestId = message.requestId;
 
+  log('[requestHostPut]', { requestId, key: message.key, peerCount: peers.size });
+
   if (!requestId) {
     throw new Error('Remote writes require a request id.');
   }
@@ -422,13 +644,12 @@ async function requestHostPut(message) {
     throw new Error('No host connected to accept this write.');
   }
 
-  const packet =
-    JSON.stringify({
-      type: 'remote-put',
-      requestId,
-      key: message.key,
-      value: message.value,
-    }) + '\n';
+  const packet = {
+    type: 'remote-put',
+    requestId,
+    key: message.key,
+    value: message.value,
+  };
 
   const ackPromise = new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
@@ -448,12 +669,15 @@ async function requestHostPut(message) {
     });
   });
 
+  log('[requestHostPut]', 'broadcasting remote-put to peers');
   for (const peer of peers.values()) {
-    peer.socket.write(b4a.from(packet));
+    sendControl(peer, packet);
   }
 
+  log('[requestHostPut]', 'waiting for host ack', { requestId });
   await ackPromise;
 
+  log('[requestHostPut]', 'host accepted write', { requestId, key: message.key });
   send({
     type: 'db-put-result',
     requestId,
@@ -464,8 +688,13 @@ async function requestHostPut(message) {
 
 async function getRecord(message) {
   const key = String(message.key || '');
+
+  log('[getRecord]', { key, requestId: message.requestId });
+
   const bee = activeBeeForKey(key);
   const entry = await bee.get(key);
+
+  log('[getRecord]', 'read complete', { key, found: Boolean(entry) });
 
   send({
     type: 'db-get-result',
@@ -477,9 +706,14 @@ async function getRecord(message) {
 
 async function delRecord(message) {
   const key = String(message.key || '');
+
+  log('[delRecord]', { key, requestId: message.requestId });
+
   const bee = activeBeeForKey(key);
 
   await bee.del(key);
+
+  log('[delRecord]', 'delete complete', { key });
 
   send({
     type: 'db-del',
@@ -496,6 +730,9 @@ async function delRecord(message) {
 async function listRecords(message) {
   const gte = String(message.gte || '');
   const lt = String(message.lt || '');
+
+  log('[listRecords]', { gte, lt, requestId: message.requestId });
+
   const bee = activeBeeForKey(gte);
   const entries = [];
 
@@ -506,6 +743,8 @@ async function listRecords(message) {
     });
   }
 
+  log('[listRecords]', 'scan complete', { count: entries.length });
+
   send({
     type: 'db-list-result',
     requestId: message.requestId,
@@ -513,33 +752,43 @@ async function listRecords(message) {
   });
 }
 
-async function startSwarm(message) {
-  await stopSwarm();
-
-  const alias = String(message.alias || 'device').trim() || 'device';
-  const role = message.role === 'join' ? 'join' : 'host';
-
-  if (role === 'host' && !campaignCore) {
-    throw new Error('Open a campaign before hosting a session.');
+async function ensureSwarm() {
+  if (!swarm || swarm.destroyed) {
+    log('[ensureSwarm]', 'creating hyperswarm');
+    swarm = new Hyperswarm();
+    attachSwarmEvents(swarm);
   }
 
-  const topicHex = resolveTopicHex(message, role);
+  log('[ensureSwarm]', 'waiting for dht ready');
+  await swarm.dht.ready();
+}
 
-  currentAlias = alias;
-  currentRole = role;
-  currentTopicHex = topicHex;
-  swarm = new Hyperswarm();
+function attachSwarmEvents(activeSwarm) {
+  if (activeSwarm.__ddAiEventsAttached) {
+    return;
+  }
 
-  swarm.on('connection', (socket, info) => {
-    if (campaignCore) {
-      campaignCore.replicate(socket);
-    }
+  activeSwarm.__ddAiEventsAttached = true;
+
+  activeSwarm.on('connection', (socket, info) => {
+    log('[startSwarm]', 'peer connection', {
+      currentRole,
+      hasCampaignCore: Boolean(campaignCore),
+    });
 
     const publicKey = socket.remotePublicKey || info.publicKey;
     const peerId = b4a.toString(publicKey, 'hex').slice(0, 12);
-    const state = { id: peerId, socket, buffer: '' };
+    const state = { id: peerId, socket };
 
     peers.set(peerId, state);
+
+    setupPeerControl(state);
+
+    if (campaignCore) {
+      attachReplicationToPeer(state);
+    }
+
+    log('[startSwarm]', 'peer opened', { peerId, connectionCount: peers.size });
 
     send({
       type: 'peer-open',
@@ -547,90 +796,8 @@ async function startSwarm(message) {
       connectionCount: peers.size,
     });
 
-    if (currentRole === 'host') {
-      sendSessionInfo(socket);
-    }
-
-    if (currentRole === 'join') {
-      socket.write(
-        b4a.from(
-          JSON.stringify({
-            type: 'request-session-info',
-          }) + '\n',
-        ),
-      );
-    }
-
-    socket.on('data', (data) => {
-      state.buffer += b4a.toString(data);
-
-      while (true) {
-        const boundary = state.buffer.indexOf('\n');
-        if (boundary === -1) break;
-
-        const line = state.buffer.slice(0, boundary).trim();
-        state.buffer = state.buffer.slice(boundary + 1);
-
-        if (!line) continue;
-
-        try {
-          const packet = JSON.parse(line);
-
-          if (packet.type === 'request-session-info' && currentRole === 'host') {
-            sendSessionInfo(socket);
-            continue;
-          }
-
-          if (packet.type === 'session-info' && currentRole === 'join') {
-            handleSessionInfo(packet).catch((error) => {
-              send({
-                type: 'error',
-                message: error.message,
-              });
-            });
-            continue;
-          }
-
-          if (packet.type === 'remote-put' && currentRole === 'host') {
-            handleRemotePut(packet, socket).catch((error) => {
-              socket.write(
-                b4a.from(
-                  JSON.stringify({
-                    type: 'remote-put-result',
-                    requestId: packet.requestId,
-                    ok: false,
-                    message: error.message,
-                  }) + '\n',
-                ),
-              );
-            });
-            continue;
-          }
-
-          if (packet.type === 'remote-put-result' && currentRole === 'join') {
-            handleRemotePutResult(packet);
-            continue;
-          }
-
-          if (packet.type === 'chat') {
-            send({
-              type: 'chat',
-              peerId,
-              author: packet.author || peerId,
-              text: packet.text || '',
-              inbound: true,
-            });
-          }
-        } catch (error) {
-          send({
-            type: 'status',
-            message: `Dropped malformed peer packet from ${peerId}: ${error.message}`,
-          });
-        }
-      }
-    });
-
     socket.on('error', (error) => {
+      log('[startSwarm]', 'peer error', { peerId }, error.message);
       send({
         type: 'status',
         message: `Peer ${peerId} error: ${error.message}`,
@@ -639,6 +806,7 @@ async function startSwarm(message) {
 
     socket.on('close', () => {
       peers.delete(peerId);
+      log('[startSwarm]', 'peer closed', { peerId, connectionCount: peers.size });
       send({
         type: 'peer-closed',
         peerId,
@@ -647,16 +815,51 @@ async function startSwarm(message) {
     });
   });
 
-  swarm.on('update', () => {
+  activeSwarm.on('update', () => {
+    log('[startSwarm]', 'swarm update', { peers: peers.size, connecting: activeSwarm.connecting });
     send({
       type: 'metrics',
       peers: peers.size,
-      connecting: swarm.connecting,
+      connecting: activeSwarm.connecting,
     });
   });
+}
+
+async function startSwarm(message) {
+  log('[startSwarm]', 'stopping existing swarm...');
+
+  await stopSwarm();
+
+  const alias = String(message.alias || 'device').trim() || 'device';
+  const role = message.role === 'join' ? 'join' : 'host';
+
+  log('[startSwarm]', { alias, role });
+
+  if (role === 'host' && !campaignCore) {
+    throw new Error('Open a campaign before hosting a session.');
+  }
+
+  const topicHex = resolveTopicHex(message, role);
+
+  log('[startSwarm]', 'resolved topic hex', { message, role }, topicHex);
+
+  currentAlias = alias;
+  currentRole = role;
+  currentTopicHex = topicHex;
+
+  log('[startSwarm]', 'resolved topic hex', { currentAlias, currentRole, currentTopicHex });
+
+  log('[startSwarm]', 'initiating hyperswarm');
+  await ensureSwarm();
 
   const topic = b4a.from(currentTopicHex, 'hex');
   const isHost = currentRole === 'host';
+
+  log('[startSwarm]', 'joining topic', {
+    isHost,
+    currentTopicHex,
+    hasCampaignCore: Boolean(campaignCore),
+  });
 
   send({
     type: 'status',
@@ -669,20 +872,22 @@ async function startSwarm(message) {
   });
 
   if (campaignCore) {
+    log('[startSwarm]', 'joining campaign discovery');
     campaignDiscovery = swarm.join(campaignCore.discoveryKey, {
       server: isHost,
       client: true,
     });
   }
 
-  if (isHost) {
-    await discovery.flushed();
-  } else {
-    await swarm.flush();
-    if (campaignCore) {
-      await campaignCore.update();
-    }
+  log('[startSwarm]', 'waiting for session discovery flush', { isHost });
+  await discovery.flushed();
+
+  if (isHost && campaignDiscovery) {
+    log('[startSwarm]', 'waiting for campaign discovery flush');
+    await campaignDiscovery.flushed();
   }
+
+  log('[startSwarm]', 'ready', { currentRole, currentAlias, currentTopicHex });
 
   send({
     type: 'ready',
@@ -692,7 +897,9 @@ async function startSwarm(message) {
   });
 }
 
-async function handleRemotePut(packet, socket) {
+async function handleRemotePut(packet, peer) {
+  log('[handleRemotePut]', { requestId: packet.requestId, key: packet.key });
+
   if (!campaignCore || !campaignCore.writable) {
     throw new Error('Host campaign is not writable.');
   }
@@ -706,31 +913,37 @@ async function handleRemotePut(packet, socket) {
     { fromRemote: true },
   );
 
-  socket.write(
-    b4a.from(
-      JSON.stringify({
-        type: 'remote-put-result',
-        requestId: packet.requestId,
-        ok: true,
-      }) + '\n',
-    ),
-  );
+  log('[handleRemotePut]', 'acknowledging remote put', { requestId: packet.requestId });
+
+  sendControl(peer, {
+    type: 'remote-put-result',
+    requestId: packet.requestId,
+    ok: true,
+  });
 }
 
 function handleRemotePutResult(packet) {
+  log('[handleRemotePutResult]', { requestId: packet.requestId, ok: packet.ok });
+
   const waiter = remotePutWaiters.get(packet.requestId);
 
   if (!waiter) {
+    log('[handleRemotePutResult]', 'no waiter for request', { requestId: packet.requestId });
     return;
   }
 
   remotePutWaiters.delete(packet.requestId);
 
   if (packet.ok) {
+    log('[handleRemotePutResult]', 'resolved', { requestId: packet.requestId });
     waiter.resolve();
     return;
   }
 
+  log('[handleRemotePutResult]', 'rejected', {
+    requestId: packet.requestId,
+    message: packet.message,
+  });
   waiter.reject(new Error(packet.message || 'Host rejected the write.'));
 }
 
@@ -738,31 +951,42 @@ async function handleSessionInfo(packet) {
   const campaignId = String(packet.campaignId || '').trim();
   const coreKey = String(packet.coreKey || '').trim();
 
+  log('[handleSessionInfo]', { campaignId, coreKey, activeCampaignId });
+
   if (!campaignId || !coreKey) {
     throw new Error('Invalid session info from host.');
   }
 
   if (activeCampaignId === campaignId && campaignCore) {
+    log('[handleSessionInfo]', 'campaign already active, syncing');
     emitCampaignOpened();
     scheduleCampaignSync();
     return;
   }
 
+  log('[handleSessionInfo]', 'opening campaign from session info');
   await openCampaign({ campaignId, coreKey }, { silent: true });
   emitCampaignOpened();
   scheduleCampaignSync();
+  log('[handleSessionInfo]', 'done', { campaignId });
 }
 
 function broadcastChat(message) {
+  log('[broadcastChat]', message);
+
   if (!swarm) {
     throw new Error('Start the swarm before sending messages.');
   }
 
   const text = String(message.text || '').trim();
 
-  if (!text) return;
+  if (!text) {
+    log('[broadcastChat]', 'skipped, empty text');
+    return;
+  }
 
   if (peers.size === 0) {
+    log('[broadcastChat]', 'no peers connected');
     send({
       type: 'status',
       message: 'No peer connected yet.',
@@ -770,16 +994,16 @@ function broadcastChat(message) {
     return;
   }
 
-  const packet = b4a.from(
-    JSON.stringify({
-      type: 'chat',
-      author: currentAlias,
-      text,
-    }) + '\n',
-  );
+  log('[broadcastChat]', 'sending to peers', { peerCount: peers.size, author: currentAlias, text });
+
+  const packet = {
+    type: 'chat',
+    author: currentAlias,
+    text,
+  };
 
   for (const peer of peers.values()) {
-    peer.socket.write(packet);
+    sendControl(peer, packet);
   }
 
   send({
@@ -792,9 +1016,22 @@ function broadcastChat(message) {
 }
 
 async function stopSwarm() {
+  log('[stopSwarm]', 'starting', {
+    peerCount: peers.size,
+    hasSwarm: Boolean(swarm),
+    hasCampaignDiscovery: Boolean(campaignDiscovery),
+    currentRole,
+    currentTopicHex,
+  });
+
   const closing = [];
 
   for (const peer of peers.values()) {
+    if (peer.controlChannel) {
+      peer.controlChannel.close();
+    }
+
+    log('[stopSwarm]', 'destroying peer socket', { peerId: peer.id });
     closing.push(
       new Promise((resolve) => {
         peer.socket.once('close', resolve);
@@ -807,22 +1044,38 @@ async function stopSwarm() {
   remotePutWaiters.clear();
 
   if (closing.length > 0) {
+    log('[stopSwarm]', 'waiting for peer sockets to close', { count: closing.length });
     await Promise.allSettled(closing);
   }
 
   if (campaignDiscovery) {
+    log('[stopSwarm]', 'destroying campaign discovery');
     await campaignDiscovery.destroy();
     campaignDiscovery = null;
   }
 
-  if (swarm) {
-    await swarm.destroy({ force: true });
+  if (discovery) {
+    log('[stopSwarm]', 'destroying session discovery');
+    await discovery.destroy();
+    discovery = null;
   }
 
-  swarm = null;
-  discovery = null;
   currentRole = null;
   currentTopicHex = null;
+
+  log('[stopSwarm]', 'done');
+}
+
+async function destroySwarmFully() {
+  await stopSwarm();
+
+  if (swarm) {
+    log('[destroySwarmFully]', 'destroying hyperswarm');
+    await swarm.destroy({ force: true });
+    swarm = null;
+  }
+
+  log('[destroySwarmFully]', 'done');
 }
 
 function ensureStore() {
@@ -832,22 +1085,62 @@ function ensureStore() {
 }
 
 function send(message) {
-  log('event', message);
+  log('[send]', message);
   IPC.write(b4a.from(JSON.stringify(message) + '\n'));
 }
 
-function log(label, data) {
-  console.log(`[holepunch:worklet] ${label}`, data);
+function toLogValue(value) {
+  if (value instanceof Error) {
+    return { name: value.name, message: value.message };
+  }
+
+  try {
+    JSON.stringify(value);
+    return value;
+  } catch {
+    return String(value);
+  }
+}
+
+function emitLog(level, label, data) {
+  try {
+    IPC.write(
+      b4a.from(
+        JSON.stringify({
+          type: 'log',
+          level,
+          label,
+          data,
+          ts: Date.now(),
+        }) + '\n',
+      ),
+    );
+  } catch {
+    // Drop logs that cannot be serialized.
+  }
+}
+
+function log(label, ...args) {
+  console.log(`[holepunch:worklet] ${label}`, ...args);
+
+  const data =
+    args.length === 0 ? undefined : args.length === 1 ? toLogValue(args[0]) : args.map(toLogValue);
+
+  emitLog('info', label, data);
 }
 
 const bootStoragePath = normalizeStoragePath(
   typeof Bare !== 'undefined' && Array.isArray(Bare.argv) ? Bare.argv[0] : '',
 );
 
+log('[boot]', 'runtime starting', { bootStoragePath: bootStoragePath || null });
+
 send({ type: 'runtime-ready', storagePath: bootStoragePath || null });
 
 if (bootStoragePath) {
+  log('[boot]', 'auto-init storage', { bootStoragePath });
   handleCommand({ type: 'init', storagePath: bootStoragePath }).catch((error) => {
+    log('[boot]', 'auto-init failed', error.message);
     send({
       type: 'error',
       message: error && error.message ? error.message : String(error),

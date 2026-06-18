@@ -27,8 +27,17 @@ export type P2pDbEntity =
 
 export type P2pDbValue = P2pDbEntity | string[] | string;
 
+export type P2pWorkletLogLevel = 'debug' | 'info' | 'warn' | 'error';
+
 export type P2pWorkletEvent =
   | { type: 'runtime-ready'; storagePath: string | null }
+  | {
+      type: 'log';
+      level: P2pWorkletLogLevel;
+      label: string;
+      data?: unknown;
+      ts: number;
+    }
   | { type: 'status'; message: string }
   | { type: 'error'; message: string; requestId?: string }
   | { type: 'stopped' }

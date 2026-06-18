@@ -9,10 +9,10 @@ const JoinSessionRoute = () => {
   const { joinPlayerSession, connectionState, error } = useCampaign();
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const handleConnect = async ({ topicHex }: JoinSessionConnectPayload) => {
+  const handleConnect = async ({ sessionCode }: JoinSessionConnectPayload) => {
     try {
       setLocalError(null);
-      await joinPlayerSession(topicHex);
+      await joinPlayerSession(sessionCode);
       router.push('/player/character-selection');
     } catch (connectError) {
       setLocalError(

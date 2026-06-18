@@ -1,9 +1,12 @@
 import { z } from 'zod';
 
-import { isValidTopicHex } from '@/lib/holepunch/topicHex';
+import { isValidJoinInput } from '@/lib/holepunch/resolveJoinInput';
 
 export const joinSessionSchema = z.object({
-  topicHex: z.string().trim().refine(isValidTopicHex, 'Enter a valid 64-character topic hex.'),
+  sessionCode: z
+    .string()
+    .trim()
+    .refine(isValidJoinInput, 'Enter a valid session code (e.g. NDFC-UJL2).'),
 });
 
 export type JoinSessionFormValues = z.infer<typeof joinSessionSchema>;

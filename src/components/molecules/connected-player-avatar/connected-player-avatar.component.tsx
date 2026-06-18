@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import { Pressable, View } from 'react-native';
 
+import { Icon } from '@/components/atoms/icon';
 import { Text } from '@/components/atoms/text';
 import { styles } from './connected-player-avatar.styles';
 import type { ConnectedPlayerAvatarProps } from './connected-player-avatar.types';
@@ -19,7 +20,17 @@ export const ConnectedPlayerAvatar = ({ player, onPress }: ConnectedPlayerAvatar
     >
       <View style={styles.avatarWrapper}>
         <View style={styles.avatar}>
-          <Image source={{ uri: player.imageUri }} style={styles.avatarImage} contentFit="cover" />
+          {player.imageUri ? (
+            <Image
+              source={{ uri: player.imageUri }}
+              style={styles.avatarImage}
+              contentFit="cover"
+            />
+          ) : (
+            <View style={styles.avatarPlaceholder}>
+              <Icon name="person" size={32} color="onSurfaceVariant" />
+            </View>
+          )}
         </View>
         {player.connected && <View style={styles.statusDot} />}
       </View>

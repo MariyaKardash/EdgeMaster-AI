@@ -28,10 +28,14 @@ describe('topicHexFromRoom', () => {
 
   it('repeats short room names to fill 32 bytes', () => {
     expect(topicHexFromRoom('ab')).toBe(
-      '6162616261626162616261626162616261626162616261626162616261626162',
+      '4142414241424142414241424142414241424142414241424142414241424142',
     );
     expect(topicHexFromRoom('room')).toBe(
-      '726f6f6d726f6f6d726f6f6d726f6f6d726f6f6d726f6f6d726f6f6d726f6f6d',
+      '524f4f4d524f4f4d524f4f4d524f4f4d524f4f4d524f4f4d524f4f4d524f4f4d',
     );
+  });
+
+  it('normalizes session codes case-insensitively', () => {
+    expect(topicHexFromRoom('ndfc-ujl2')).toBe(topicHexFromRoom('NDFC-UJL2'));
   });
 });

@@ -10,3 +10,4 @@ export { logHolepunch, type HolepunchLogSource } from './logHolepunch';
 export { logHolepunchEvent } from './logHolepunchEvent';
 export { campaignTopicHex, sessionTopicHex } from './sessionTopicHex';
 export { isValidTopicHex, normalizeTopicHex } from './topicHex';
+export { isValidJoinInput, resolveJoinInput } from './resolveJoinInput';

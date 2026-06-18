@@ -19,13 +19,18 @@ import {
   type Player,
   type Session,
 } from '@/database';
-import { useCampaignId, useCampaignTopicHex } from '@/hooks/useCampaignSessionId';
+import { useCampaignId, useCampaignSessionCode } from '@/hooks/useCampaignSessionId';
 import { defaultAlias } from '@/lib/holepunch/defaultAlias';
 import { campaignTopicHex } from '@/lib/holepunch/sessionTopicHex';
 import { navigateSessionDashboardTab } from '@/navigation/session-dashboard-tabs';
 import { SessionDashboardScreen } from '@/screens/master/session-dashboard';
+import { logDev } from '@/lib/logger';
 
 const DEFAULT_PLAYER_CLASS = 'Adventurer';
+
+function isPlayerSessionDbKey(key: string, sessionId: string) {
+  return key.startsWith('@player/') || key.startsWith(dbKeys.indexPlayersBySession(sessionId));
+}
 
 function mapPlayerToConnected(player: Player): ConnectedPlayer {
   return {
@@ -37,10 +42,25 @@ function mapPlayerToConnected(player: Player): ConnectedPlayer {
   };
 }
 
+function mergeConnectedPlayer(players: ConnectedPlayer[], player: Player) {
+  const mapped = mapPlayerToConnected(player);
+  const existingIndex = players.findIndex((item) => item.id === mapped.id);
+
+  if (existingIndex === -1) {
+    return [...players, mapped];
+  }
+
+  return players.map((item, index) => (index === existingIndex ? mapped : item));
+}
+
+function playerIdFromDbKey(key: string) {
+  return key.startsWith('@player/') ? key.slice('@player/'.length) : undefined;
+}
+
 const SessionDashboardRoute = () => {
   const router = useRouter();
   const campaignId = useCampaignId();
-  const displayTopicHex = useCampaignTopicHex();
+  const displaySessionCode = useCampaignSessionCode();
   const {
     ready,
     activeSession,
@@ -56,13 +76,18 @@ const SessionDashboardRoute = () => {
     setConnectionState,
     runWithoutCampaignRefresh,
   } = useCampaign();
-  const [topicHex, setTopicHex] = useState<string>();
+  const [sessionCode, setSessionCode] = useState<string>();
   const [connectedPlayers, setConnectedPlayers] = useState<ConnectedPlayer[]>([]);
   const [isStartingSession, setIsStartingSession] = useState(false);
   const autoStartAttemptedRef = useRef(false);
 
-  const isSessionActive = connectionState === 'connected';
-  const isSessionConnecting = connectionState === 'connecting';
+  const isHostingCurrentCampaign =
+    connectionState === 'connected' &&
+    activeSession?.campaignId === campaignId &&
+    activeSession?.status === 'active';
+
+  const isSessionActive = isHostingCurrentCampaign;
+  const isSessionConnecting = connectionState === 'connecting' || isStartingSession;
 
   const fetchPlayers = useCallback(
     async (sessionId: string) => {
@@ -95,13 +120,15 @@ const SessionDashboardRoute = () => {
   const hostSession = useCallback(
     async (session: Session) => {
       // Start hosting the P2P swarm so players can join with the topic hex.
+      logDev('startSwarm', { role: 'host', alias: defaultAlias(), session });
       await worklet.startSwarm({
         role: 'host',
         alias: defaultAlias(),
+        sessionCode: session.sessionCode,
       });
 
       setActiveSession(session);
-      setTopicHex(session.topicHex);
+      setSessionCode(session.sessionCode);
       await loadPlayers(session.id);
     },
     [loadPlayers, setActiveSession, worklet],
@@ -146,7 +173,8 @@ const SessionDashboardRoute = () => {
           .find((item) => item.campaignId === campaignId && item.status === 'active');
 
         if (existingSession && !cancelled) {
-          setTopicHex(existingSession.topicHex);
+          setSessionCode(existingSession.sessionCode);
+          setActiveSession(existingSession);
         }
       } catch (error) {
         if (!cancelled) {
@@ -160,30 +188,82 @@ const SessionDashboardRoute = () => {
     return () => {
       cancelled = true;
     };
-  }, [campaignId, ready, setActiveCampaign, setActiveChapter, setError, worklet]);
+  }, [campaignId, ready, setActiveCampaign, setActiveChapter, setActiveSession, setError, worklet]);
+
+  const hostedSessionId =
+    activeSession && activeSession.campaignId === campaignId && activeSession.status === 'active'
+      ? activeSession.id
+      : undefined;
 
   useEffect(() => {
-    if (!isSessionActive || !activeSession?.id) {
+    if (!hostedSessionId || connectionState !== 'connected') {
       return;
     }
 
+    const sessionId = hostedSessionId;
     let cancelled = false;
 
-    void fetchPlayers(activeSession.id).then((players) => {
-      if (!cancelled) {
-        setConnectedPlayers(players);
+    const refreshPlayers = () => {
+      void fetchPlayers(sessionId).then((players) => {
+        if (!cancelled) {
+          setConnectedPlayers(players);
+        }
+      });
+    };
+
+    refreshPlayers();
+
+    const unsubscribe = worklet.onEvent((event) => {
+      if (event.type === 'peer-open') {
+        refreshPlayers();
+        return;
+      }
+
+      if (event.type === 'db-put') {
+        if (!isPlayerSessionDbKey(event.key, sessionId)) {
+          return;
+        }
+
+        if (event.key.startsWith('@player/') && event.value && typeof event.value === 'object') {
+          const parsed = playerSchema.safeParse(event.value);
+
+          if (parsed.success && parsed.data.sessionId === sessionId) {
+            setConnectedPlayers((current) => mergeConnectedPlayer(current, parsed.data));
+            return;
+          }
+        }
+
+        refreshPlayers();
+        return;
+      }
+
+      if (event.type === 'db-del' && isPlayerSessionDbKey(event.key, sessionId)) {
+        const playerId = playerIdFromDbKey(event.key);
+
+        if (playerId) {
+          setConnectedPlayers((current) => current.filter((player) => player.id !== playerId));
+          return;
+        }
+
+        refreshPlayers();
       }
     });
 
     return () => {
       cancelled = true;
+      unsubscribe();
     };
-  }, [activeSession?.id, connectedPeers, fetchPlayers, isSessionActive]);
+  }, [connectedPeers, connectionState, fetchPlayers, hostedSessionId, worklet]);
 
-  const displayedConnectedPlayers = isSessionActive ? connectedPlayers : [];
+  const displayedConnectedPlayers =
+    connectionState === 'connected' && hostedSessionId ? connectedPlayers : [];
 
   const handleStartSession = async () => {
-    if (!ready || !campaignId || isStartingSession || isSessionActive || isSessionConnecting) {
+    if (!ready || !campaignId || isStartingSession || isHostingCurrentCampaign) {
+      return;
+    }
+
+    if (connectionState === 'connecting') {
       return;
     }
 
@@ -198,11 +278,48 @@ const SessionDashboardRoute = () => {
             ? activeSession
             : null;
 
+        logDev({ currentSession });
+
         if (currentSession) {
-          await hostSession(currentSession);
+          logDev('[hostSession]');
+          await worklet.openCampaign(campaignId);
+
+          const expectedSessionCode = sessionIdFromCampaignId(campaignId);
+          const expectedTopicHex = campaignTopicHex(campaignId);
+          let session = currentSession;
+
+          if (
+            session.sessionCode !== expectedSessionCode ||
+            session.topicHex !== expectedTopicHex
+          ) {
+            const previousSessionCode = session.sessionCode;
+            const previousTopicHex = session.topicHex;
+
+            session = touchEntity({
+              ...session,
+              sessionCode: expectedSessionCode,
+              topicHex: expectedTopicHex,
+            });
+
+            await worklet.put(dbKeys.session(session.id), session);
+
+            if (previousSessionCode !== expectedSessionCode) {
+              await worklet.del(dbKeys.indexSessionByCode(previousSessionCode));
+            }
+
+            if (previousTopicHex !== expectedTopicHex) {
+              await worklet.del(dbKeys.indexSessionByTopicHex(previousTopicHex));
+            }
+
+            await worklet.put(dbKeys.indexSessionByCode(session.sessionCode), session.id);
+            await worklet.put(dbKeys.indexSessionByTopicHex(session.topicHex), session.id);
+          }
+
+          await hostSession(session);
           return;
         }
 
+        logDev('[openCampaign]');
         // --- 1. Open campaign database ---
         await worklet.openCampaign(campaignId);
 
@@ -289,24 +406,33 @@ const SessionDashboardRoute = () => {
     }
   };
 
-  const resolvedTopicHex = topicHex ?? displayTopicHex;
+  const resolvedSessionCode = sessionCode ?? displaySessionCode;
 
   useEffect(() => {
     autoStartAttemptedRef.current = false;
   }, [campaignId]);
 
   useEffect(() => {
-    if (!ready || !campaignId || autoStartAttemptedRef.current || connectionState !== 'idle') {
+    if (!ready || !campaignId || autoStartAttemptedRef.current || isStartingSession) {
+      return;
+    }
+
+    if (isHostingCurrentCampaign || connectionState === 'connecting') {
       return;
     }
 
     autoStartAttemptedRef.current = true;
-    void handleStartSession();
-  }, [ready, campaignId, connectionState]);
+    const timeoutId = setTimeout(() => {
+      void handleStartSession();
+    }, 0);
+
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- auto-start runs once per campaign when prerequisites are met
+  }, [campaignId, connectionState, isHostingCurrentCampaign, isStartingSession, ready]);
 
   return (
     <SessionDashboardScreen
-      sessionId={resolvedTopicHex}
+      sessionId={isHostingCurrentCampaign || isSessionConnecting ? resolvedSessionCode : undefined}
       isSessionActive={isSessionActive}
       isSessionConnecting={isSessionConnecting}
       isStartingSession={isStartingSession}
