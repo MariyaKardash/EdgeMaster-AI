@@ -91,6 +91,11 @@ export const styles = StyleSheet.create((theme) => ({
     paddingTop: theme.spacing.md,
     paddingBottom: theme.spacing.md,
   },
+  chapterTabContent: {
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.md,
+  },
   inventoryTabContent: {
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.md,

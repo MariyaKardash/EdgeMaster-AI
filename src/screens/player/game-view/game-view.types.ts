@@ -2,18 +2,16 @@ import type { EventLogItemData } from '@/components/molecules/event-log-item';
 import type { PartyPlayer } from '@/components/molecules/party-player-card';
 import type { InventoryItem } from '@/screens/master/equip-hero';
 
-export type PlayerSheetTab = 'stats' | 'inventory' | 'history';
-
-export type NarrativeParagraph = {
-  text: string;
-  variant?: 'body' | 'quote';
-};
+export type PlayerSheetTab = 'stats' | 'inventory' | 'chapter';
 
 export type GameViewScreenProps = {
-  chapterTitle?: string;
-  narrative?: NarrativeParagraph[];
-  chapterImageUri?: string;
+  hasActiveChapter?: boolean;
+  chapterTitle?: string | null;
+  chapterDescription?: string | null;
+  logEntries?: EventLogItemData[];
+  isLoadingEvents?: boolean;
   partyPlayer?: PartyPlayer;
   inventoryItems?: InventoryItem[];
-  gameLog?: EventLogItemData[];
+  isChatEnabled?: boolean;
+  onChatPress?: () => void;
 };
