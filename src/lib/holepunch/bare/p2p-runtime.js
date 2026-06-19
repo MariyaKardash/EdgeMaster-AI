@@ -25,6 +25,8 @@ let currentTopicHex = null;
 let inputBuffer = '';
 const peers = new Map();
 const remotePutWaiters = new Map();
+let campaignReplicationNotifyTimer = null;
+let handleSessionInfoChain = Promise.resolve();
 
 IPC.on('data', (chunk) => {
   inputBuffer += b4a.toString(chunk);
@@ -246,6 +248,59 @@ async function initStorage(message) {
   send({ type: 'status', message: 'Storage ready.' });
 }
 
+function campaignCoreKeyHex(core) {
+  return b4a.toString(core.key, 'hex');
+}
+
+function canReuseOpenCampaign(campaignId, coreKeyHex) {
+  if (activeCampaignId !== campaignId || !campaignBee || !campaignCore || campaignCore.closing) {
+    return false;
+  }
+
+  if (!coreKeyHex) {
+    return true;
+  }
+
+  return campaignCoreKeyHex(campaignCore) === coreKeyHex;
+}
+
+async function syncCampaignSwarm() {
+  if (!swarm || !campaignCore) {
+    return;
+  }
+
+  log('[openCampaign]', 'attaching replication and joining campaign discovery', {
+    currentRole,
+    peerCount: peers.size,
+  });
+
+  attachReplicationToPeers();
+
+  if (campaignDiscovery) {
+    await campaignDiscovery.destroy();
+  }
+
+  campaignDiscovery = swarm.join(campaignCore.discoveryKey, {
+    server: currentRole === 'host',
+    client: true,
+  });
+}
+
+function emitCampaignOpenedEvent(campaignId, silent) {
+  if (silent || !campaignCore) {
+    return;
+  }
+
+  log('[openCampaign]', 'emitting campaign-opened');
+  send({
+    type: 'campaign-opened',
+    campaignId,
+    coreKey: campaignCoreKeyHex(campaignCore),
+    discoveryKey: b4a.toString(campaignCore.discoveryKey, 'hex'),
+    writable: campaignCore.writable,
+  });
+}
+
 async function openCampaign(message, options = {}) {
   log('[openCampaign]', 'starting', { message, options });
 
@@ -261,28 +316,21 @@ async function openCampaign(message, options = {}) {
 
   log('[openCampaign]', { campaignId, coreKeyHex, silent, activeCampaignId });
 
-  if (activeCampaignId === campaignId && campaignBee && campaignCore && !coreKeyHex) {
+  if (canReuseOpenCampaign(campaignId, coreKeyHex)) {
     log('[openCampaign]', 'campaign already open, reusing');
 
-    if (swarm) {
-      attachReplicationToPeers();
-    }
-
-    if (!silent) {
-      send({
-        type: 'campaign-opened',
-        campaignId,
-        coreKey: b4a.toString(campaignCore.key, 'hex'),
-        discoveryKey: b4a.toString(campaignCore.discoveryKey, 'hex'),
-        writable: campaignCore.writable,
-      });
-    }
+    attachCampaignReplicationListener();
+    await syncCampaignSwarm();
+    emitCampaignOpenedEvent(campaignId, silent);
 
     return;
   }
 
-  if (activeCampaignId !== campaignId) {
-    log('[openCampaign]', 'closing previous campaign', { activeCampaignId });
+  if (activeCampaignId !== campaignId || campaignCore?.closing) {
+    log('[openCampaign]', 'closing previous campaign', {
+      activeCampaignId,
+      closing: Boolean(campaignCore?.closing),
+    });
     await closeCampaign({ silent: true });
   }
 
@@ -299,10 +347,12 @@ async function openCampaign(message, options = {}) {
     writable: campaignCore.writable,
     discoveryKey: b4a.toString(campaignCore.discoveryKey, 'hex'),
   });
+  attachCampaignReplicationListener();
 
   if (campaignBee) {
     log('[openCampaign]', 'closing previous campaign bee');
     await campaignBee.close();
+    campaignBee = null;
   }
 
   log('[openCampaign]', 'creating campaign hyperbee');
@@ -314,37 +364,16 @@ async function openCampaign(message, options = {}) {
 
   activeCampaignId = campaignId;
 
-  if (swarm) {
-    log('[openCampaign]', 'attaching replication and joining campaign discovery', {
-      currentRole,
-      peerCount: peers.size,
-    });
-    attachReplicationToPeers();
-    if (campaignDiscovery) {
-      await campaignDiscovery.destroy();
-    }
-    campaignDiscovery = swarm.join(campaignCore.discoveryKey, {
-      server: currentRole === 'host',
-      client: true,
-    });
-  }
-
-  if (!silent) {
-    log('[openCampaign]', 'emitting campaign-opened');
-    send({
-      type: 'campaign-opened',
-      campaignId,
-      coreKey: b4a.toString(campaignCore.key, 'hex'),
-      discoveryKey: b4a.toString(campaignCore.discoveryKey, 'hex'),
-      writable: campaignCore.writable,
-    });
-  }
+  await syncCampaignSwarm();
+  emitCampaignOpenedEvent(campaignId, silent);
 
   log('[openCampaign]', 'done', { campaignId, activeCampaignId });
 }
 
 async function closeCampaign(message = {}) {
   log('[closeCampaign]', 'starting', { activeCampaignId, message });
+
+  detachCampaignReplicationListener();
 
   if (campaignDiscovery) {
     log('[closeCampaign]', 'destroying campaign discovery');
@@ -595,6 +624,40 @@ function scheduleCampaignSync() {
       message: `Campaign sync warning: ${error.message}`,
     });
   });
+}
+
+function notifyCampaignDbUpdated() {
+  if (campaignReplicationNotifyTimer) {
+    clearTimeout(campaignReplicationNotifyTimer);
+  }
+
+  campaignReplicationNotifyTimer = setTimeout(() => {
+    campaignReplicationNotifyTimer = null;
+    send({ type: 'campaign-db-updated' });
+  }, 150);
+}
+
+function attachCampaignReplicationListener() {
+  if (!campaignCore || campaignCore.__ddAiReplicationListenerAttached) {
+    return;
+  }
+
+  campaignCore.__ddAiReplicationListenerAttached = true;
+  campaignCore.on('append', notifyCampaignDbUpdated);
+}
+
+function detachCampaignReplicationListener() {
+  if (campaignReplicationNotifyTimer) {
+    clearTimeout(campaignReplicationNotifyTimer);
+    campaignReplicationNotifyTimer = null;
+  }
+
+  if (!campaignCore) {
+    return;
+  }
+
+  campaignCore.removeListener('append', notifyCampaignDbUpdated);
+  campaignCore.__ddAiReplicationListenerAttached = false;
 }
 
 async function putRecord(message, options = {}) {
@@ -993,6 +1056,16 @@ function handleRemotePutResult(packet) {
 }
 
 async function handleSessionInfo(packet) {
+  handleSessionInfoChain = handleSessionInfoChain
+    .catch(() => {
+      // Keep the queue alive after a failed handler.
+    })
+    .then(() => handleSessionInfoImpl(packet));
+
+  return handleSessionInfoChain;
+}
+
+async function handleSessionInfoImpl(packet) {
   const campaignId = String(packet.campaignId || '').trim();
   const coreKey = String(packet.coreKey || '').trim();
 
@@ -1002,7 +1075,7 @@ async function handleSessionInfo(packet) {
     throw new Error('Invalid session info from host.');
   }
 
-  if (activeCampaignId === campaignId && campaignCore) {
+  if (canReuseOpenCampaign(campaignId, coreKey)) {
     log('[handleSessionInfo]', 'campaign already active, syncing');
     emitCampaignOpened();
     scheduleCampaignSync();

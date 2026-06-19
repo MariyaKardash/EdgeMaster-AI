@@ -3,11 +3,23 @@ import { useEffect, useRef, useState } from 'react';
 import type { EventLogEntryData } from '@/components/molecules/combat-log-entry';
 import { useCampaign } from '@/contexts/campaign-context';
 import { dbKeys } from '@/database';
+import type { P2pWorkletEvent } from '@/database/p2p/types';
 import { logDev } from '@/lib/logger';
 import { mapGameEventsToLogEntries } from '@/screens/master/live-control/live-control.constants';
 
 function isChapterGameEventDbKey(key: string, chapterId: string) {
-  return key.startsWith(dbKeys.indexEventsByChapter(chapterId));
+  return key.startsWith('@game-event/') || key.startsWith(dbKeys.indexEventsByChapter(chapterId));
+}
+
+function shouldReloadChapterGameLog(event: P2pWorkletEvent, chapterId: string) {
+  if (event.type === 'campaign-db-updated') {
+    return true;
+  }
+
+  return (
+    (event.type === 'db-put' || event.type === 'db-del') &&
+    isChapterGameEventDbKey(event.key, chapterId)
+  );
 }
 
 export function useChapterGameLog(chapterId?: string) {
@@ -47,10 +59,7 @@ export function useChapterGameLog(chapterId?: string) {
     void loadGameLog();
 
     const unsubscribe = worklet.onEvent((event) => {
-      if (
-        (event.type === 'db-put' || event.type === 'db-del') &&
-        isChapterGameEventDbKey(event.key, chapterId)
-      ) {
+      if (shouldReloadChapterGameLog(event, chapterId)) {
         void loadGameLog();
       }
     });
