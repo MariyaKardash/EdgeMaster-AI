@@ -7,6 +7,10 @@ export const MOCK_PARTY_PLAYER = MOCK_PARTY_PLAYERS[0];
 
 export const APP_BAR_TITLE = 'EDGEMASTER';
 
+export const NO_ACTIVE_CHAPTER_MESSAGE = 'No active chapter, ask master to join';
+
+export const NO_HISTORY_MESSAGE = 'No events recorded for this chapter yet.';
+
 export const CHAPTER_TITLE = 'The Sunken Marshes';
 
 export const CHAPTER_IMAGE_URI =

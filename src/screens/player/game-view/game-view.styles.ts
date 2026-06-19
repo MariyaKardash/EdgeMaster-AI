@@ -42,6 +42,17 @@ export const styles = StyleSheet.create((theme) => ({
   chapterTitle: {
     color: theme.colors.primary,
   },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: theme.spacing.xl,
+  },
+  emptyStateText: {
+    color: theme.colors.onSurfaceVariant,
+    textAlign: 'center',
+    lineHeight: 32,
+  },
   narrativeCard: {
     gap: theme.spacing.lg,
     padding: theme.spacing.lg,

@@ -12,8 +12,8 @@ import type { PartyPlayer } from '@/components/molecules/party-player-card';
 import { HeroInventoryList, MOCK_INVENTORY_ITEMS } from '@/screens/master/equip-hero';
 import type { InventoryItem } from '@/screens/master/equip-hero';
 import {
-  MOCK_GAME_LOG,
   MOCK_PARTY_PLAYER,
+  NO_HISTORY_MESSAGE,
   PLAYER_SHEET_EXPANDED_HEIGHT,
   PLAYER_SHEET_HEADER_HEIGHT,
 } from './game-view.constants';
@@ -41,7 +41,7 @@ export const PlayerSheet = ({
   safeAreaBottom,
   partyPlayer = MOCK_PARTY_PLAYER,
   inventoryItems = MOCK_INVENTORY_ITEMS,
-  gameLog = MOCK_GAME_LOG,
+  gameLog = [],
 }: PlayerSheetProps) => {
   const sheetRef = useRef<GorhomBottomSheet>(null);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -165,9 +165,19 @@ export const PlayerSheet = ({
         ) : null}
         {activeTab === 'history' ? (
           <View style={styles.historyTabContent}>
-            {gameLog.map((entry, index) => (
-              <CombatLogEntry key={entry.id} entry={entry} isLast={index === gameLog.length - 1} />
-            ))}
+            {gameLog.length > 0 ? (
+              gameLog.map((entry, index) => (
+                <CombatLogEntry
+                  key={entry.id}
+                  entry={entry}
+                  isLast={index === gameLog.length - 1}
+                />
+              ))
+            ) : (
+              <Text variant="bodyMd" style={styles.emptyHistoryText}>
+                {NO_HISTORY_MESSAGE}
+              </Text>
+            )}
           </View>
         ) : null}
       </BottomSheetScrollView>

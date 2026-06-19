@@ -11,11 +11,7 @@ import {
   Text,
   TextField,
 } from '@/components';
-import {
-  createEventLogEntry,
-  MOCK_EVENT_LOG,
-  SUMMARIZE_END_CHAPTER_LABEL,
-} from './live-control.constants';
+import { SUMMARIZE_END_CHAPTER_LABEL } from './live-control.constants';
 import { styles } from './live-control.styles';
 import type { LiveControlScreenProps } from './live-control.types';
 
@@ -23,27 +19,29 @@ export const LiveControlScreen = ({
   liveSessionLabel = 'LIVE SESSION',
   chapterTitle = 'The Sunken Marshes',
   chapterSubtitle = 'Chapter IV: The Whispering Reeds',
-  logEntries: initialLogEntries = MOCK_EVENT_LOG,
+  logEntries = [],
   onExecuteEvent,
   onSummarizeAndEndChapter,
   onTabPress,
 }: LiveControlScreenProps) => {
   const insets = useSafeAreaInsets();
   const [description, setDescription] = useState('');
-  const [logEntries, setLogEntries] = useState(initialLogEntries);
   const floatingSummaryBottom = getSessionDashboardBottomNavHeight(insets.bottom) + 16;
   const bottomPadding =
     getSessionDashboardBottomNavHeight(insets.bottom) + (onSummarizeAndEndChapter ? 96 : 24);
 
-  const handleExecuteEvent = () => {
+  const handleExecuteEvent = async () => {
     const message = description.trim();
-    if (!message) {
+    if (!message || !onExecuteEvent) {
       return;
     }
 
-    setLogEntries((current) => [createEventLogEntry(message), ...current]);
-    setDescription('');
-    onExecuteEvent?.(message);
+    try {
+      await onExecuteEvent(message);
+      setDescription('');
+    } catch {
+      // Keep the draft so the master can retry after a failed save.
+    }
   };
 
   return (
@@ -99,7 +97,7 @@ export const LiveControlScreen = ({
               title="Execute Event"
               icon="bolt"
               fullWidth
-              disabled={!description.trim()}
+              disabled={!description.trim() || !onExecuteEvent}
               onPress={handleExecuteEvent}
             />
           </View>

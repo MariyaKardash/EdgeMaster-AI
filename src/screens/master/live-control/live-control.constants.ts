@@ -1,4 +1,5 @@
 import type { EventLogEntryData } from '@/components/molecules/combat-log-entry';
+import type { GameEvent } from '@/database';
 
 export const MOCK_EVENT_LOG: EventLogEntryData[] = [
   {
@@ -28,3 +29,12 @@ export const createEventLogEntry = (message: string): EventLogEntryData => ({
   message,
   timestamp: formatEventLogTimestamp(new Date()),
 });
+
+export const mapGameEventsToLogEntries = (events: GameEvent[]): EventLogEntryData[] =>
+  [...events]
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .map((event) => ({
+      id: event.id,
+      message: event.body,
+      timestamp: formatEventLogTimestamp(new Date(event.createdAt)),
+    }));

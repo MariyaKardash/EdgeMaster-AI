@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import { Pressable, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -6,11 +5,8 @@ import { Icon, Text } from '@/components';
 import { MOCK_INVENTORY_ITEMS } from '@/screens/master/equip-hero';
 import {
   APP_BAR_TITLE,
-  CHAPTER_IMAGE_URI,
-  CHAPTER_TITLE,
-  MOCK_GAME_LOG,
-  MOCK_NARRATIVE,
   MOCK_PARTY_PLAYER,
+  NO_ACTIVE_CHAPTER_MESSAGE,
   PLAYER_SHEET_HEADER_HEIGHT,
 } from './game-view.constants';
 import { styles } from './game-view.styles';
@@ -20,16 +16,16 @@ import { PlayerSheet } from './player-sheet.component';
 const BOTTOM_INSET_MIN = 8;
 
 export const GameViewScreen = ({
-  chapterTitle = CHAPTER_TITLE,
-  narrative = MOCK_NARRATIVE,
-  chapterImageUri = CHAPTER_IMAGE_URI,
+  chapterTitle,
+  chapterDescription,
   partyPlayer = MOCK_PARTY_PLAYER,
   inventoryItems = MOCK_INVENTORY_ITEMS,
-  gameLog = MOCK_GAME_LOG,
+  gameLog = [],
 }: GameViewScreenProps) => {
   const insets = useSafeAreaInsets();
   const bottomInset = Math.max(insets.bottom, BOTTOM_INSET_MIN);
   const scrollBottomPadding = bottomInset + PLAYER_SHEET_HEADER_HEIGHT + 16;
+  const hasActiveChapter = Boolean(chapterTitle);
 
   return (
     <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -54,36 +50,27 @@ export const GameViewScreen = ({
         contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollBottomPadding }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text variant="displayLg" style={styles.chapterTitle}>
-          {chapterTitle}
-        </Text>
+        {hasActiveChapter ? (
+          <>
+            <Text variant="displayLg" style={styles.chapterTitle}>
+              {chapterTitle}
+            </Text>
 
-        <View style={styles.narrativeCard}>
-          {narrative.map((paragraph, index) => {
-            if (paragraph.variant === 'quote') {
-              return (
-                <View key={index}>
-                  <Text variant="headlineMd" style={styles.narrativeQuote}>
-                    {paragraph.text}
-                  </Text>
-                  <View style={styles.chapterImageWrapper}>
-                    <Image
-                      source={{ uri: chapterImageUri }}
-                      style={styles.chapterImage}
-                      contentFit="cover"
-                    />
-                  </View>
-                </View>
-              );
-            }
-
-            return (
-              <Text key={index} variant="headlineMd" style={styles.narrativeParagraph}>
-                {paragraph.text}
-              </Text>
-            );
-          })}
-        </View>
+            {chapterDescription ? (
+              <View style={styles.narrativeCard}>
+                <Text variant="headlineMd" style={styles.narrativeParagraph}>
+                  {chapterDescription}
+                </Text>
+              </View>
+            ) : null}
+          </>
+        ) : (
+          <View style={styles.emptyState}>
+            <Text variant="headlineMd" style={styles.emptyStateText}>
+              {NO_ACTIVE_CHAPTER_MESSAGE}
+            </Text>
+          </View>
+        )}
       </ScrollView>
 
       <PlayerSheet

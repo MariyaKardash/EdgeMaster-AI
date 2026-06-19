@@ -11,8 +11,7 @@ export type NarrativeParagraph = {
 
 export type GameViewScreenProps = {
   chapterTitle?: string;
-  narrative?: NarrativeParagraph[];
-  chapterImageUri?: string;
+  chapterDescription?: string;
   partyPlayer?: PartyPlayer;
   inventoryItems?: InventoryItem[];
   gameLog?: EventLogEntryData[];

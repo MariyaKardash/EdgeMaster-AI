@@ -91,6 +91,10 @@ export const styles = StyleSheet.create((theme) => ({
     paddingTop: theme.spacing.md,
     paddingBottom: theme.spacing.md,
   },
+  emptyHistoryText: {
+    color: theme.colors.onSurfaceVariant,
+    textAlign: 'center',
+  },
   inventoryTabContent: {
     paddingHorizontal: theme.spacing.md,
     paddingTop: theme.spacing.md,
