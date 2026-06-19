@@ -1,3 +1,5 @@
+import type { CampaignDoc } from '@/types/campaign.types';
+
 export type Role = 'user' | 'assistant' | 'system';
 
 export type MessageStats = { ttftMs?: number; tps?: number };
@@ -12,5 +14,5 @@ export type ChatMessage = {
 export type CampaignChatProps = {
   campaignId: string;
   campaignName: string;
-  userRole?: 'master' | 'player';
+  seedDocuments: CampaignDoc[];
 };

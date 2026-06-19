@@ -21,5 +21,8 @@ export const navigateSessionDashboardTab = (
     case 'players':
       router.replace({ pathname: '/master/party-status', params });
       break;
+    case 'chat':
+      router.replace({ pathname: '/master/chat', params });
+      break;
   }
 };

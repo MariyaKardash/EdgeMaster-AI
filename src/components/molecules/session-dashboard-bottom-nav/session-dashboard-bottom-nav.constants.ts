@@ -17,4 +17,5 @@ export const SESSION_DASHBOARD_TABS: SessionDashboardNavTab[] = [
   { id: 'overview', label: 'Overview', icon: 'build' },
   { id: 'chapters', label: 'Chapters', icon: 'menu-book' },
   { id: 'players', label: 'Players', icon: 'group' },
+  { id: 'chat', label: 'Chat', icon: 'chat-bubble' },
 ];

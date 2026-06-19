@@ -10,7 +10,7 @@ import {
   unloadModel,
 } from '@qvac/sdk';
 
-import type { CampaignDoc } from '@/types/campaign.types';
+import type { CampaignDoc, DocSource } from '@/types/campaign.types';
 
 import { WORKSPACE_PREFIX } from './campaign-rag.constants';
 import type { RAGServiceProgressCallback } from './campaign-rag.types';
@@ -73,15 +73,20 @@ export class CampaignRAGService {
     const alreadySeeded = existing.some((w) => w.name === workspace);
 
     if (!alreadySeeded) {
+      if (seedDocuments.length > 0) {
+        onProgress?.('seeding');
+        await ragIngest({
+          modelId: this.embeddingModelId,
+          documents: seedDocuments.map(formatDocContent),
+          workspace,
+          onProgress: (_stage, current, total) => {
+            if (total > 0) onProgress?.('seeding', Math.round((current / total) * 100));
+          },
+        });
+      }
+    } else if (seedDocuments.length > 0) {
       onProgress?.('seeding');
-      await ragIngest({
-        modelId: this.embeddingModelId,
-        documents: seedDocuments.map(formatDocContent),
-        workspace,
-        onProgress: (_stage, current, total) => {
-          if (total > 0) onProgress?.('seeding', Math.round((current / total) * 100));
-        },
-      });
+      await this.addDocuments(seedDocuments);
     }
 
     onProgress?.('ready');
@@ -138,7 +143,12 @@ export class CampaignRAGService {
     });
   }
 
-  async addChapterDescription(chapterId: string, title: string, content: string): Promise<void> {
+  async addChapterDescription(
+    chapterId: string,
+    title: string,
+    content: string,
+    source: DocSource = 'master-written',
+  ): Promise<void> {
     await this.addDocuments([
       {
         id: `chapter-description-${chapterId}`,
@@ -146,26 +156,26 @@ export class CampaignRAGService {
         title,
         content,
         chapterId,
-        source: 'master-written',
+        source,
         createdAt: Date.now(),
       },
     ]);
   }
 
-  async addSessionSummary(
-    sessionNumber: number,
+  async addChapterSummary(
     chapterId: string,
+    chapterTitle: string,
     content: string,
+    source: DocSource = 'master-written',
   ): Promise<void> {
     await this.addDocuments([
       {
-        id: `session-summary-${sessionNumber}`,
+        id: `session-summary-${chapterId}`,
         type: 'session-summary',
-        title: `Session ${sessionNumber} Summary`,
+        title: chapterTitle,
         content,
         chapterId,
-        sessionNumber,
-        source: 'master-written',
+        source,
         createdAt: Date.now(),
       },
     ]);
