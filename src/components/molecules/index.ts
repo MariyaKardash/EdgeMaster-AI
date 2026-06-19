@@ -30,3 +30,4 @@ export { SuccessSparkles } from './success-sparkles';
 export { TabBar } from './tab-bar';
 export type { TabBarItem } from './tab-bar';
 export { TextField } from './text-field';
+export { WaitingForChapter } from './waiting-for-chapter';

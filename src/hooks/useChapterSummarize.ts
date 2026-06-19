@@ -9,6 +9,7 @@ import {
 } from '@/screens/master/chapter-summarize/chapter-summarize.utils';
 import { useLLMModel, type LLMModelStatus } from './useLLMModel';
 import { useTranscription } from './useTranscription';
+import { syncChapterSummaryToRAG } from '@/services/campaign-rag';
 
 export type UseChapterSummarizeResult = {
   chapter: Chapter | null;
@@ -176,7 +177,15 @@ export function useChapterSummarize({ chapterId, onSaved }: Params): UseChapterS
     setErrorMessage(null);
 
     try {
-      await summarizeChapter(chapterId, summaryText.trim());
+      const updatedChapter = await summarizeChapter(chapterId, summaryText.trim());
+
+      void syncChapterSummaryToRAG(
+        updatedChapter.campaignId,
+        updatedChapter.id,
+        updatedChapter.title,
+        summaryText.trim(),
+      );
+
       onSaved();
     } catch (e) {
       if (mountedRef.current) {

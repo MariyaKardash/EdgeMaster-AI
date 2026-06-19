@@ -20,6 +20,8 @@ import {
 
 import { useLLMModel } from './useLLMModel';
 import { useTranscription } from './useTranscription';
+import { syncChapterDescriptionToRAG } from '@/services/campaign-rag';
+import type { DocSource } from '@/types/campaign.types';
 
 export type UseNewChapterParams = {
   campaignId: string;
@@ -200,13 +202,24 @@ export function useNewChapter({ campaignId }: UseNewChapterParams): UseNewChapte
       const existingChapters = await listChapters(campaignId).catch(() => []);
       const order = existingChapters.length;
       const generationSource = buildGenerationSource(activeTab);
-      await createChapter({
+      const chapter = await createChapter({
         campaignId,
         title: title.trim(),
         description: description.trim(),
         order,
         generationSource,
       });
+
+      const ragSource: DocSource =
+        generationSource.type === 'ai_generated' ? 'ai-generated' : 'master-written';
+
+      void syncChapterDescriptionToRAG(
+        campaignId,
+        chapter.id,
+        chapter.title,
+        chapter.description,
+        ragSource,
+      );
     } catch (e) {
       console.error('[useNewChapter] handleSave failed:', e);
       setErrorMessage(e instanceof Error ? e.message : 'Failed to save chapter.');

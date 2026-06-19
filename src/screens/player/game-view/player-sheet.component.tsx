@@ -4,18 +4,19 @@ import GorhomBottomSheet, {
   type BottomSheetHandleProps,
 } from '@gorhom/bottom-sheet';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, Text as RNText, View } from 'react-native';
 
-import { EventLogItem, Icon, PartyPlayerCard, Text } from '@/components';
-import type { EventLogItemData } from '@/components/molecules/event-log-item';
+import { Icon, PartyPlayerCard, Text, WaitingForChapter } from '@/components';
 import type { PartyPlayer } from '@/components/molecules/party-player-card';
+import { styles as chapterDetailStyles } from '@/screens/master/chapter-detail/chapter-detail.styles';
 import { HeroInventoryList, MOCK_INVENTORY_ITEMS } from '@/screens/master/equip-hero';
 import type { InventoryItem } from '@/screens/master/equip-hero';
+
 import {
-  MOCK_GAME_LOG,
   MOCK_PARTY_PLAYER,
   PLAYER_SHEET_EXPANDED_HEIGHT,
   PLAYER_SHEET_HEADER_HEIGHT,
+  WAITING_FOR_CHAPTER_MESSAGE,
 } from './game-view.constants';
 import type { PlayerSheetTab } from './game-view.types';
 import { styles } from './player-sheet.styles';
@@ -24,7 +25,9 @@ type PlayerSheetProps = {
   safeAreaBottom: number;
   partyPlayer?: PartyPlayer;
   inventoryItems?: InventoryItem[];
-  gameLog?: EventLogItemData[];
+  hasActiveChapter?: boolean;
+  chapterTitle?: string | null;
+  chapterDescription?: string | null;
 };
 
 const SHEET_TABS: {
@@ -34,14 +37,16 @@ const SHEET_TABS: {
 }[] = [
   { id: 'stats', label: 'Stats', icon: 'show-chart' },
   { id: 'inventory', label: 'Inventory', icon: 'inventory-2' },
-  { id: 'history', label: 'History', icon: 'history-edu' },
+  { id: 'chapter', label: 'Chapter', icon: 'history-edu' },
 ];
 
 export const PlayerSheet = ({
   safeAreaBottom,
   partyPlayer = MOCK_PARTY_PLAYER,
   inventoryItems = MOCK_INVENTORY_ITEMS,
-  gameLog = MOCK_GAME_LOG,
+  hasActiveChapter = false,
+  chapterTitle = null,
+  chapterDescription = null,
 }: PlayerSheetProps) => {
   const sheetRef = useRef<GorhomBottomSheet>(null);
   const [isExpanded, setIsExpanded] = useState(false);
@@ -163,11 +168,23 @@ export const PlayerSheet = ({
             />
           </View>
         ) : null}
-        {activeTab === 'history' ? (
-          <View style={styles.historyTabContent}>
-            {gameLog.map((entry, index) => (
-              <EventLogItem key={entry.id} entry={entry} isLast={index === gameLog.length - 1} />
-            ))}
+        {activeTab === 'chapter' ? (
+          <View style={styles.chapterTabContent}>
+            {!hasActiveChapter ? (
+              <WaitingForChapter message={WAITING_FOR_CHAPTER_MESSAGE} />
+            ) : (
+              <View style={chapterDetailStyles.section}>
+                <RNText style={chapterDetailStyles.headerTitle} numberOfLines={2}>
+                  {chapterTitle ?? 'Chapter'}
+                </RNText>
+                <RNText style={chapterDetailStyles.sectionTitle}>Description</RNText>
+                <View style={chapterDetailStyles.sectionCard}>
+                  <RNText style={chapterDetailStyles.sectionBody}>
+                    {chapterDescription?.trim() ? chapterDescription : 'No description.'}
+                  </RNText>
+                </View>
+              </View>
+            )}
           </View>
         ) : null}
       </BottomSheetScrollView>

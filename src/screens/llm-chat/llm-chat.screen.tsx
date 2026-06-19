@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -12,26 +12,22 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useUnistyles } from 'react-native-unistyles';
 
-import { MOCK_CAMPAIGN } from '@/data/mock-campaign';
 import { useCampaignChat } from '@/hooks/useCampaignChat';
 
 import { styles } from './llm-chat.styles';
 import type { CampaignChatProps, ChatMessage } from './llm-chat.types';
 import { formatStats } from './llm-chat.utils';
 
-type Props = Partial<CampaignChatProps>;
+type Props = CampaignChatProps & {
+  footer?: ReactNode;
+};
 
-export function LLMChatScreen({
-  campaignId = MOCK_CAMPAIGN.id,
-  campaignName = MOCK_CAMPAIGN.name,
-  userRole = 'player',
-}: Props) {
+export function LLMChatScreen({ campaignId, campaignName, seedDocuments, footer }: Props) {
   const { messages, sendMessage, isGenerating, isReady, statusLabel, downloadPct } =
     useCampaignChat({
       campaignId,
       campaignName,
-      userRole,
-      seedDocuments: MOCK_CAMPAIGN.documents,
+      seedDocuments,
     });
 
   const [input, setInput] = useState('');
@@ -61,7 +57,9 @@ export function LLMChatScreen({
   const visibleMessages = messages.filter((m) => m.role !== 'system');
 
   return (
-    <View style={[styles.safe, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+    <View
+      style={[styles.safe, { paddingTop: insets.top, paddingBottom: footer ? 0 : insets.bottom }]}
+    >
       <KeyboardAvoidingView
         style={styles.safe}
         behavior="padding"
@@ -117,6 +115,8 @@ export function LLMChatScreen({
           {isGenerating ? <ActivityIndicator color={theme.colors.primary} /> : null}
         </View>
       </KeyboardAvoidingView>
+
+      {footer}
     </View>
   );
 }

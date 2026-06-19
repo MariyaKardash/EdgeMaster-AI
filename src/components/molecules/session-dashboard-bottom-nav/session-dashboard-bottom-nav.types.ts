@@ -1,6 +1,6 @@
-export type SessionDashboardTab = 'overview' | 'chapters' | 'players';
+export type SessionDashboardTab = 'overview' | 'chapters' | 'players' | 'chat';
 
-export type SessionDashboardTabIcon = 'build' | 'menu-book' | 'group';
+export type SessionDashboardTabIcon = 'build' | 'menu-book' | 'group' | 'chat-bubble';
 
 export type SessionDashboardNavTab = {
   id: SessionDashboardTab;

@@ -14,7 +14,6 @@ const MAX_HISTORY_MESSAGES = 10;
 export type UseCampaignChatParams = {
   campaignId: string;
   campaignName: string;
-  userRole?: 'master' | 'player';
   seedDocuments: CampaignDoc[];
 };
 
@@ -31,11 +30,10 @@ function makeId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-function buildSystemPrompt(campaignName: string, userRole: string, context: string | null): string {
-  const roleDesc = userRole === 'master' ? 'Game Master' : 'player';
+function buildSystemPrompt(campaignName: string, context: string | null): string {
   const base =
     `You are a knowledgeable assistant for the tabletop RPG campaign "${campaignName}". ` +
-    `You are helping a ${roleDesc} recall campaign details, lore, and events.`;
+    `You help everyone at the table recall campaign details, lore, and events.`;
 
   if (!context) {
     return (
@@ -55,7 +53,6 @@ function buildSystemPrompt(campaignName: string, userRole: string, context: stri
 export function useCampaignChat({
   campaignId,
   campaignName,
-  userRole = 'player',
   seedDocuments,
 }: UseCampaignChatParams): UseCampaignChatResult {
   const llm = useLLMModel();
@@ -107,7 +104,7 @@ export function useCampaignChat({
       try {
         const ragContext = await rag.search(trimmed);
 
-        const systemContent = buildSystemPrompt(campaignName, userRole, ragContext);
+        const systemContent = buildSystemPrompt(campaignName, ragContext);
 
         const recentMessages = messagesRef.current
           .filter((m) => m.role !== 'system')
@@ -163,7 +160,7 @@ export function useCampaignChat({
         setIsGenerating(false);
       }
     },
-    [llm.modelId, isGenerating, rag, campaignName, userRole],
+    [llm.modelId, isGenerating, rag, campaignName],
   );
 
   return {

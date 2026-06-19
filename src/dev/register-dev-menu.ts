@@ -6,10 +6,13 @@ export function registerAppDevMenuItems() {
 
   void registerDevMenuItems([
     {
-      name: 'Open LLM Chat',
+      name: 'Player Game View (Dev)',
       shouldCollapse: true,
       callback: () => {
-        router.push('/dev/chat');
+        router.push({
+          pathname: '/player/game-view',
+          params: { playerId: 'valerius' },
+        });
       },
     },
     {
