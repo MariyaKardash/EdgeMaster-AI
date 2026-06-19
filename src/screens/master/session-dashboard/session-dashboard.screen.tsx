@@ -34,6 +34,7 @@ export const SessionDashboardScreen = ({
   activeChapterDescription,
   activeChapterImageUri,
   connectedPlayers = [],
+  connectedPeerCount = 0,
   onStartSession,
   onOpenChapter,
   onPlayerPress,
@@ -109,7 +110,7 @@ export const SessionDashboardScreen = ({
               </Text>
             </View>
             <Text variant="labelMd" style={styles.activeCount}>
-              {getActivePlayersLabel(connectedPlayers.length)}
+              {getActivePlayersLabel(connectedPeerCount)}
             </Text>
           </View>
 

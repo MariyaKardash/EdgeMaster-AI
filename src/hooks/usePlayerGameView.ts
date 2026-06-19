@@ -1,9 +1,6 @@
-import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
-
 import type { EventLogItemData } from '@/components/molecules/event-log-item';
 import { useCampaign } from '@/contexts/campaign-context';
-import { gameEventToLogItem } from '@/screens/master/live-control/live-control.utils';
+import { useChapterGameLog } from '@/hooks/useChapterGameLog';
 
 export type UsePlayerGameViewResult = {
   hasActiveChapter: boolean;
@@ -15,35 +12,8 @@ export type UsePlayerGameViewResult = {
 };
 
 export function usePlayerGameView(): UsePlayerGameViewResult {
-  const { activeChapter, listGameEvents } = useCampaign();
-
-  const [logEntries, setLogEntries] = useState<EventLogItemData[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const loadData = useCallback(async () => {
-    setIsLoading(true);
-
-    try {
-      const chapterId = activeChapter?.id;
-      if (!chapterId) {
-        setLogEntries([]);
-        return;
-      }
-
-      const events = await listGameEvents(chapterId);
-      setLogEntries([...events].reverse().map(gameEventToLogItem));
-    } catch {
-      setLogEntries([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeChapter, listGameEvents]);
-
-  useFocusEffect(
-    useCallback(() => {
-      void loadData();
-    }, [loadData]),
-  );
+  const { activeChapter } = useCampaign();
+  const { entries: logEntries, isLoading } = useChapterGameLog(activeChapter?.id);
 
   return {
     hasActiveChapter: activeChapter != null,
@@ -51,6 +21,6 @@ export function usePlayerGameView(): UsePlayerGameViewResult {
     chapterDescription: activeChapter?.description ?? null,
     logEntries,
     isLoading,
-    refresh: loadData,
+    refresh: async () => {},
   };
 }

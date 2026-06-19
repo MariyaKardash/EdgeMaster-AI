@@ -5,8 +5,8 @@ import { useCallback, useState } from 'react';
 import type { EventLogItemData } from '@/components/molecules/event-log-item';
 import { useCampaign } from '@/contexts/campaign-context';
 import type { Chapter } from '@/database';
+import { useChapterGameLog } from '@/hooks/useChapterGameLog';
 import { FIX_SYSTEM_PROMPT } from '@/screens/master/new-chapter/new-chapter.constants';
-import { gameEventToLogItem } from '@/screens/master/live-control/live-control.utils';
 
 import { useLLMModel } from './useLLMModel';
 import { useTranscription } from './useTranscription';
@@ -36,14 +36,15 @@ export type UseLiveControlResult = {
 };
 
 export function useLiveControl({ chapterId }: UseLiveControlParams): UseLiveControlResult {
-  const { getChapter, listGameEvents, createGameEvent } = useCampaign();
+  const { getChapter, createGameEvent } = useCampaign();
+  const { entries: logEntries, isLoading: isLogLoading } = useChapterGameLog(chapterId);
   const llm = useLLMModel();
 
   const [chapter, setChapter] = useState<Chapter | null>(null);
-  const [logEntries, setLogEntries] = useState<EventLogItemData[]>([]);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const isLoadingEvents = isLoading || isLogLoading;
   const [isExecuting, setIsExecuting] = useState(false);
   const [isFixing, setIsFixing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -57,18 +58,14 @@ export function useLiveControl({ chapterId }: UseLiveControlParams): UseLiveCont
     setErrorMessage(null);
 
     try {
-      const [loadedChapter, events] = await Promise.all([
-        getChapter(chapterId),
-        listGameEvents(chapterId),
-      ]);
+      const loadedChapter = await getChapter(chapterId);
       setChapter(loadedChapter);
-      setLogEntries([...events].reverse().map(gameEventToLogItem));
     } catch (e: unknown) {
       setErrorMessage(e instanceof Error ? e.message : 'Failed to load events.');
     } finally {
       setIsLoading(false);
     }
-  }, [chapterId, getChapter, listGameEvents]);
+  }, [chapterId, getChapter]);
 
   useFocusEffect(
     useCallback(() => {
@@ -157,13 +154,12 @@ export function useLiveControl({ chapterId }: UseLiveControlParams): UseLiveCont
     setErrorMessage(null);
 
     try {
-      const event = await createGameEvent({
+      await createGameEvent({
         chapterId,
         type: 'event',
         title: eventTitle,
         body,
       });
-      setLogEntries((current) => [gameEventToLogItem(event), ...current]);
       setTitle('');
       setDescription('');
       return true;
@@ -182,7 +178,7 @@ export function useLiveControl({ chapterId }: UseLiveControlParams): UseLiveCont
     setTitle: handleTitleChange,
     description,
     setDescription: handleDescriptionChange,
-    isLoading,
+    isLoading: isLoadingEvents,
     isExecuting,
     isFixing,
     isModelReady: llm.isReady,

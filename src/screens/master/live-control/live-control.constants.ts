@@ -1,6 +1,7 @@
 import type { EventLogItemData } from '@/components/molecules/event-log-item';
+import type { GameEvent } from '@/database';
 
-import { deriveEventTitle } from './live-control.utils';
+import { deriveEventTitle, gameEventToLogItem } from './live-control.utils';
 
 export const MOCK_EVENT_LOG: EventLogItemData[] = [
   {
@@ -46,3 +47,8 @@ export const createEventLogEntry = (body: string): EventLogItemData => ({
   body,
   timestamp: formatEventLogTimestamp(new Date()),
 });
+
+export const mapGameEventsToLogEntries = (events: GameEvent[]): EventLogItemData[] =>
+  [...events]
+    .sort((left, right) => right.createdAt.localeCompare(left.createdAt))
+    .map(gameEventToLogItem);

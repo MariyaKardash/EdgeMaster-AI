@@ -54,6 +54,7 @@ export type P2pWorkletEvent =
     }
   | { type: 'db-put'; key: string; value: P2pDbValue | null }
   | { type: 'db-del'; key: string }
+  | { type: 'campaign-db-updated' }
   | {
       type: 'db-list-result';
       requestId: string;
