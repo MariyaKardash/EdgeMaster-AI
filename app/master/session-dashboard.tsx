@@ -33,28 +33,16 @@ function isPlayerSessionDbKey(key: string, sessionId: string) {
 }
 
 function mapPlayerToConnected(player: Player): ConnectedPlayer {
+  const displayName = player.displayName.trim();
+  const name = displayName.replace(/^device-/i, '') || displayName;
+
   return {
     id: player.id,
-    name: player.displayName,
+    name,
     class: DEFAULT_PLAYER_CLASS,
     imageUri: '',
     connected: true,
   };
-}
-
-function mergeConnectedPlayer(players: ConnectedPlayer[], player: Player) {
-  const mapped = mapPlayerToConnected(player);
-  const existingIndex = players.findIndex((item) => item.id === mapped.id);
-
-  if (existingIndex === -1) {
-    return [...players, mapped];
-  }
-
-  return players.map((item, index) => (index === existingIndex ? mapped : item));
-}
-
-function playerIdFromDbKey(key: string) {
-  return key.startsWith('@player/') ? key.slice('@player/'.length) : undefined;
 }
 
 function excludeLocalPlayer(players: ConnectedPlayer[], localPlayerId?: string | null) {
@@ -115,15 +103,20 @@ const SessionDashboardRoute = () => {
     [worklet],
   );
 
-  const loadPlayers = useCallback(
-    async (sessionId: string) => {
-      setConnectedPlayers(await fetchPlayers(sessionId));
-    },
-    [fetchPlayers],
-  );
-
   const hostSession = useCallback(
     async (session: Session) => {
+      const stalePlayerEntries = await worklet.list<string>(
+        dbKeys.indexPlayersBySession(session.id),
+        dbPrefixEnd(dbKeys.indexPlayersBySession(session.id)),
+      );
+
+      for (const entry of stalePlayerEntries) {
+        await worklet.del(dbKeys.player(entry.value));
+        await worklet.del(`${dbKeys.indexPlayersBySession(session.id)}${entry.value}`);
+      }
+
+      setConnectedPlayers([]);
+
       // Start hosting the P2P swarm so players can join with the topic hex.
       logDev('startSwarm', { role: 'host', alias: defaultAlias(), session });
       await worklet.startSwarm({
@@ -134,9 +127,8 @@ const SessionDashboardRoute = () => {
 
       setActiveSession(session);
       setSessionCode(session.sessionCode);
-      await loadPlayers(session.id);
     },
-    [loadPlayers, setActiveSession, worklet],
+    [setActiveSession, worklet],
   );
 
   useEffect(() => {
@@ -219,37 +211,10 @@ const SessionDashboardRoute = () => {
     refreshPlayers();
 
     const unsubscribe = worklet.onEvent((event) => {
-      if (event.type === 'peer-open') {
-        refreshPlayers();
-        return;
-      }
-
-      if (event.type === 'db-put') {
-        if (!isPlayerSessionDbKey(event.key, sessionId)) {
-          return;
-        }
-
-        if (event.key.startsWith('@player/') && event.value && typeof event.value === 'object') {
-          const parsed = playerSchema.safeParse(event.value);
-
-          if (parsed.success && parsed.data.sessionId === sessionId) {
-            setConnectedPlayers((current) => mergeConnectedPlayer(current, parsed.data));
-            return;
-          }
-        }
-
-        refreshPlayers();
-        return;
-      }
-
-      if (event.type === 'db-del' && isPlayerSessionDbKey(event.key, sessionId)) {
-        const playerId = playerIdFromDbKey(event.key);
-
-        if (playerId) {
-          setConnectedPlayers((current) => current.filter((player) => player.id !== playerId));
-          return;
-        }
-
+      if (
+        (event.type === 'db-put' || event.type === 'db-del') &&
+        isPlayerSessionDbKey(event.key, sessionId)
+      ) {
         refreshPlayers();
       }
     });
@@ -258,7 +223,7 @@ const SessionDashboardRoute = () => {
       cancelled = true;
       unsubscribe();
     };
-  }, [connectedPeers, connectionState, fetchPlayers, hostedSessionId, worklet]);
+  }, [connectionState, fetchPlayers, hostedSessionId, worklet]);
 
   const remoteConnectedPlayers =
     connectionState === 'connected' && hostedSessionId

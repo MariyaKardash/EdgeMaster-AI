@@ -778,7 +778,7 @@ function attachSwarmEvents(activeSwarm) {
 
     const publicKey = socket.remotePublicKey || info.publicKey;
     const peerId = b4a.toString(publicKey, 'hex').slice(0, 12);
-    const state = { id: peerId, socket };
+    const state = { id: peerId, socket, playerId: null };
 
     peers.set(peerId, state);
 
@@ -805,8 +805,16 @@ function attachSwarmEvents(activeSwarm) {
     });
 
     socket.on('close', () => {
+      const disconnectedPlayerId = state.playerId;
       peers.delete(peerId);
       log('[startSwarm]', 'peer closed', { peerId, connectionCount: peers.size });
+
+      if (disconnectedPlayerId) {
+        removePlayerById(disconnectedPlayerId).catch((error) => {
+          log('[startSwarm]', 'failed to remove player for peer', { peerId }, error.message);
+        });
+      }
+
       send({
         type: 'peer-closed',
         peerId,
@@ -897,6 +905,35 @@ async function startSwarm(message) {
   });
 }
 
+async function removePlayerById(playerId) {
+  if (!campaignBee || currentRole !== 'host') {
+    return;
+  }
+
+  const playerKey = `@player/${playerId}`;
+  const playerEntry = await campaignBee.get(playerKey);
+  const sessionId =
+    playerEntry && playerEntry.value && typeof playerEntry.value === 'object'
+      ? String(playerEntry.value.sessionId || '').trim()
+      : '';
+
+  if (playerEntry) {
+    await campaignBee.del(playerKey);
+    send({ type: 'db-del', key: playerKey });
+  }
+
+  if (sessionId) {
+    const sessionIndexKey = `@idx/players/${sessionId}/${playerId}`;
+    await campaignBee.del(sessionIndexKey);
+    send({ type: 'db-del', key: sessionIndexKey });
+  }
+
+  log('[removePlayerById]', 'removed player for disconnected peer', {
+    playerId,
+    sessionId,
+  });
+}
+
 async function handleRemotePut(packet, peer) {
   log('[handleRemotePut]', { requestId: packet.requestId, key: packet.key });
 
@@ -912,6 +949,14 @@ async function handleRemotePut(packet, peer) {
     },
     { fromRemote: true },
   );
+
+  if (packet.key.startsWith('@player/')) {
+    const playerId = packet.key.slice('@player/'.length).trim();
+
+    if (playerId) {
+      peer.playerId = playerId;
+    }
+  }
 
   log('[handleRemotePut]', 'acknowledging remote put', { requestId: packet.requestId });
 
