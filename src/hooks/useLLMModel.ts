@@ -8,6 +8,8 @@ import {
 } from '@qvac/sdk';
 import { useEffect, useRef, useState } from 'react';
 
+import { auditModelLoad, auditModelUnload } from '@/lib/qvac-audit';
+
 export type LLMModelStatus = 'idle' | 'downloading' | 'loading' | 'ready' | 'error';
 
 export type UseLLMModelResult = {
@@ -68,6 +70,7 @@ export function useLLMModel({ ctxSize = 1024 }: UseLLMModelParams = {}): UseLLMM
 
         if (!mountedRef.current) return;
 
+        auditModelLoad(LLAMA_3_2_1B_INST_Q4_0.name, 'llamacpp-completion', id, 'gpu');
         setModelId(id);
         setStatus('ready');
         setStatusLabel('LLM ready');
@@ -89,6 +92,7 @@ export function useLLMModel({ ctxSize = 1024 }: UseLLMModelParams = {}): UseLLMM
   useEffect(() => {
     return () => {
       if (modelId) {
+        auditModelUnload(LLAMA_3_2_1B_INST_Q4_0.name, modelId);
         void unloadModel({ modelId, clearStorage: false }).catch(() => {});
       }
     };

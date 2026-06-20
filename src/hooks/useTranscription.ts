@@ -18,6 +18,7 @@ import {
 } from '@qvac/sdk';
 
 import type { DictationState } from '@/components/organisms/description-editor';
+import { auditModelLoad, qvacAudit } from '@/lib/qvac-audit';
 
 /**
  * 16 kHz mono LPCM WAV — required format for whispercpp transcription.
@@ -96,6 +97,7 @@ export function useTranscription({
       modelType: 'whispercpp-transcription',
     });
 
+    auditModelLoad(WHISPER_TINY_Q8_0.name, 'whispercpp-transcription', id);
     whisperModelIdRef.current = id;
     return id;
   }, []);
@@ -136,6 +138,12 @@ export function useTranscription({
 
       const modelId = await ensureWhisperLoaded();
       const text = await transcribe({ modelId, audioChunk: filePath });
+
+      qvacAudit({
+        event: 'transcription',
+        model: WHISPER_TINY_Q8_0.name,
+        textLength: text.trim().length,
+      });
 
       if (mountedRef.current) setDictationState('idle');
       return text.trim() || null;

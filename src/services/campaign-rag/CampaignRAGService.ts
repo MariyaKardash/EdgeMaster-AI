@@ -11,6 +11,7 @@ import {
 } from '@qvac/sdk';
 
 import type { CampaignDoc, DocSource } from '@/types/campaign.types';
+import { auditModelLoad, auditModelUnload, qvacAudit } from '@/lib/qvac-audit';
 
 import { WORKSPACE_PREFIX } from './campaign-rag.constants';
 import type { RAGServiceProgressCallback } from './campaign-rag.types';
@@ -55,6 +56,12 @@ export class CampaignRAGService {
         onProgress?.('loading-embedder', Math.round(p.percentage));
       },
     });
+    auditModelLoad(
+      EMBEDDINGGEMMA_300M_Q4_0.name,
+      'llamacpp-embedding',
+      this.embeddingModelId,
+      'cpu',
+    );
   }
 
   async openWorkspace(
@@ -114,6 +121,14 @@ export class CampaignRAGService {
     });
 
     const relevant = results.filter((r) => r.score >= minScore);
+
+    qvacAudit({
+      event: 'rag_search',
+      query,
+      results: relevant.length,
+      topScore: relevant[0]?.score,
+      workspace: `${WORKSPACE_PREFIX}${this.campaignId}`,
+    });
 
     if (relevant.length === 0) return null;
 
@@ -183,6 +198,7 @@ export class CampaignRAGService {
 
   async close(): Promise<void> {
     if (this.embeddingModelId) {
+      auditModelUnload(EMBEDDINGGEMMA_300M_Q4_0.name, this.embeddingModelId);
       await unloadModel({ modelId: this.embeddingModelId, clearStorage: false }).catch(() => {});
       this.embeddingModelId = null;
     }

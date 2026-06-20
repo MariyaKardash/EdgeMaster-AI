@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CampaignDoc } from '@/types/campaign.types';
 import type { ChatMessage, MessageStats } from '@/screens/llm-chat/llm-chat.types';
 
+import { auditCompletion } from '@/lib/qvac-audit';
+
 import { useCampaignRAG } from './useCampaignRAG';
 import { useLLMModel } from './useLLMModel';
 
@@ -147,6 +149,11 @@ export function useCampaignChat({
             tps: final.stats.tokensPerSecond ?? stats?.tps,
           };
         }
+
+        auditCompletion('campaign_chat', final.stats, {
+          promptChars: trimmed.length,
+          ragContextChars: ragContext?.length ?? 0,
+        });
 
         if (stats && (stats.ttftMs != null || stats.tps != null)) {
           setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, stats } : m)));

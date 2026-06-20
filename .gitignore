@@ -51,3 +51,7 @@ yarn-error.*
 
 # Cursor
 .cursor/
+
+# QVAC hackathon submission artifacts (upload with BUIDL; do not commit)
+artifacts/
+*.log*
