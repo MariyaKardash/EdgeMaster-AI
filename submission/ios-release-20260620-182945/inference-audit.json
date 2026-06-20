@@ -1,0 +1,97 @@
+[
+  {
+    "ts": "2026-06-20T15:34:42.775Z",
+    "event": "inference",
+    "operation": "new_chapter_generate",
+    "promptTokens": 140,
+    "generatedTokens": 518,
+    "ttftMs": 672.245,
+    "tokensPerSecond": 33.60586522257463,
+    "backendDevice": "gpu",
+    "cacheTokens": 0,
+    "promptChars": 131
+  },
+  {
+    "ts": "2026-06-20T15:35:02.103Z",
+    "event": "model_unload",
+    "model": "LLAMA_3_2_1B_INST_Q4_0",
+    "modelId": "71936376d655fe81"
+  },
+  {
+    "ts": "2026-06-20T15:36:07.829Z",
+    "event": "model_load",
+    "model": "LLAMA_3_2_1B_INST_Q4_0",
+    "modelType": "llamacpp-completion",
+    "modelId": "71936376d655fe81",
+    "device": "gpu"
+  },
+  {
+    "ts": "2026-06-20T15:38:27.768Z",
+    "event": "model_load",
+    "model": "WHISPER_TINY_Q8_0",
+    "modelType": "whispercpp-transcription",
+    "modelId": "0fa4463ce61d80f0"
+  },
+  {
+    "ts": "2026-06-20T15:38:28.182Z",
+    "event": "transcription",
+    "model": "WHISPER_TINY_Q8_0",
+    "textLength": 107
+  },
+  {
+    "ts": "2026-06-20T15:39:42.155Z",
+    "event": "inference",
+    "operation": "chapter_summarize",
+    "promptTokens": 363,
+    "generatedTokens": 357,
+    "ttftMs": 1650.755,
+    "tokensPerSecond": 31.83403357803926,
+    "backendDevice": "gpu",
+    "cacheTokens": 0,
+    "eventCount": 4,
+    "promptChars": 936
+  },
+  {
+    "ts": "2026-06-20T15:39:46.410Z",
+    "event": "model_unload",
+    "model": "LLAMA_3_2_1B_INST_Q4_0",
+    "modelId": "71936376d655fe81"
+  },
+  {
+    "ts": "2026-06-20T15:40:18.760Z",
+    "event": "model_load",
+    "model": "LLAMA_3_2_1B_INST_Q4_0",
+    "modelType": "llamacpp-completion",
+    "modelId": "71936376d655fe81",
+    "device": "gpu"
+  },
+  {
+    "ts": "2026-06-20T15:40:59.200Z",
+    "event": "model_load",
+    "model": "EMBEDDINGGEMMA_300M_Q4_0",
+    "modelType": "llamacpp-embedding",
+    "modelId": "5eee4b73cdef9168",
+    "device": "cpu"
+  },
+  {
+    "ts": "2026-06-20T15:41:21.444Z",
+    "event": "rag_search",
+    "query": "Who is Elder Mira and what did she warn us about?",
+    "results": 3,
+    "topScore": 0.5374762328830096,
+    "workspace": "campaign-c93bdaf6-8217-426c-bed0-b3af981f2368"
+  },
+  {
+    "ts": "2026-06-20T15:41:24.691Z",
+    "event": "inference",
+    "operation": "campaign_chat",
+    "promptTokens": 435,
+    "generatedTokens": 54,
+    "ttftMs": 1438.002,
+    "tokensPerSecond": 31.88551446982361,
+    "backendDevice": "gpu",
+    "cacheTokens": 0,
+    "promptChars": 49,
+    "ragContextChars": 2489
+  }
+]
