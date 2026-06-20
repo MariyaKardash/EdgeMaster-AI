@@ -5,6 +5,7 @@ import { useCallback, useState } from 'react';
 import { completion } from '@qvac/sdk';
 
 import type { DictationState } from '@/components/organisms/description-editor';
+import { auditCompletion } from '@/lib/qvac-audit';
 import { useCampaign } from '@/contexts/campaign-context';
 import type { ChapterInputTab, DocState } from '@/screens/master/new-chapter/new-chapter.types';
 import {
@@ -101,7 +102,7 @@ export function useNewChapter({ campaignId }: UseNewChapterParams): UseNewChapte
   }, [transcription]);
 
   const runCompletion = useCallback(
-    async (systemPrompt: string, userContent: string): Promise<string> => {
+    async (operation: string, systemPrompt: string, userContent: string): Promise<string> => {
       if (!llm.modelId) throw new Error('LLM model not ready');
 
       const run = completion({
@@ -119,6 +120,10 @@ export function useNewChapter({ campaignId }: UseNewChapterParams): UseNewChapte
           result += event.text;
         }
       }
+
+      const final = await run.final;
+      auditCompletion(operation, final.stats, { promptChars: userContent.length });
+
       return result.trim();
     },
     [llm.modelId],
@@ -129,7 +134,7 @@ export function useNewChapter({ campaignId }: UseNewChapterParams): UseNewChapte
     setIsFixing(true);
     setErrorMessage(null);
     try {
-      const fixed = await runCompletion(FIX_SYSTEM_PROMPT, description);
+      const fixed = await runCompletion('new_chapter_fix', FIX_SYSTEM_PROMPT, description);
       if (fixed) setDescription(fixed);
     } catch (e: unknown) {
       console.error('[useNewChapter] handleFix failed:', e);
@@ -150,7 +155,7 @@ export function useNewChapter({ campaignId }: UseNewChapterParams): UseNewChapte
         description: c.description,
       }));
       const systemPrompt = buildGenerateSystemPrompt(priorChapters);
-      const generated = await runCompletion(systemPrompt, promptText);
+      const generated = await runCompletion('new_chapter_generate', systemPrompt, promptText);
       if (generated) setDescription(generated);
     } catch (e: unknown) {
       console.error('[useNewChapter] handleGenerate failed:', e);

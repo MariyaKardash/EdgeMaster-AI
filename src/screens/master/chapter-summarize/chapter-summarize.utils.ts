@@ -1,6 +1,7 @@
 import { completion } from '@qvac/sdk';
 
 import type { Chapter, GameEvent } from '@/database';
+import { auditCompletion } from '@/lib/qvac-audit';
 
 import {
   CHAPTER_BACKGROUND_MAX_CHARS,
@@ -116,6 +117,12 @@ export async function generateChapterSummary({
     }
   }
 
+  const final = await run.final;
+  auditCompletion('chapter_summarize', final.stats, {
+    eventCount: events.length,
+    promptChars: userContent.length,
+  });
+
   return {
     summary: cleanGeneratedSummary(acc),
     systemContent,
@@ -139,6 +146,11 @@ export async function fixChapterSummary(modelId: string, summaryText: string): P
       result += event.text;
     }
   }
+
+  const final = await run.final;
+  auditCompletion('chapter_summarize_fix', final.stats, {
+    summaryChars: summaryText.length,
+  });
 
   return cleanGeneratedSummary(result.trim());
 }

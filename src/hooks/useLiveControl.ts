@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react';
 
 import type { EventLogItemData } from '@/components/molecules/event-log-item';
 import { useCampaign } from '@/contexts/campaign-context';
+import { auditCompletion } from '@/lib/qvac-audit';
 import type { Chapter } from '@/database';
 import { useChapterGameLog } from '@/hooks/useChapterGameLog';
 import { FIX_SYSTEM_PROMPT } from '@/screens/master/new-chapter/new-chapter.constants';
@@ -98,7 +99,7 @@ export function useLiveControl({ chapterId }: UseLiveControlParams): UseLiveCont
   }, [transcription]);
 
   const runCompletion = useCallback(
-    async (systemPrompt: string, userContent: string): Promise<string> => {
+    async (operation: string, systemPrompt: string, userContent: string): Promise<string> => {
       if (!llm.modelId) {
         throw new Error('LLM model not ready');
       }
@@ -118,6 +119,10 @@ export function useLiveControl({ chapterId }: UseLiveControlParams): UseLiveCont
           result += event.text;
         }
       }
+
+      const final = await run.final;
+      auditCompletion(operation, final.stats, { promptChars: userContent.length });
+
       return result.trim();
     },
     [llm.modelId],
@@ -132,7 +137,7 @@ export function useLiveControl({ chapterId }: UseLiveControlParams): UseLiveCont
     setErrorMessage(null);
 
     try {
-      const fixed = await runCompletion(FIX_SYSTEM_PROMPT, description);
+      const fixed = await runCompletion('live_control_fix', FIX_SYSTEM_PROMPT, description);
       if (fixed) {
         setDescription(fixed);
       }
