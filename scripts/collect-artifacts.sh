@@ -29,6 +29,7 @@ mkdir -p "$OUT"
 
 OS="$(uname -s)"
 ADB_DEVICE="${ADB_DEVICE:-}"
+IOS_DEVICE="${IOS_DEVICE:-}"
 SKIP_RUN=false
 BUILD_TYPE="dev"
 
@@ -46,6 +47,13 @@ while [ $# -gt 0 ]; do
       ;;
     --android=*)
       ADB_DEVICE="${1#--android=}"
+      ;;
+    --ios)
+      shift
+      IOS_DEVICE="${1:-}"
+      ;;
+    --ios=*)
+      IOS_DEVICE="${1#--ios=}"
       ;;
   esac
   shift
@@ -67,6 +75,90 @@ capture_android_device() {
     adb -s "$serial" shell grep -m1 MemAvailable /proc/meminfo 2>/dev/null | tr -d '\r' || true
     echo "battery: $(adb -s "$serial" shell dumpsys battery 2>/dev/null | grep -E 'level:|status:' | tr -d '\r' | sed 's/^ *//')"
   } 2>/dev/null
+}
+
+capture_ios_product_specs() {
+  local product_type="$1"
+  case "$product_type" in
+    iPhone14,5) echo "marketing_name: iPhone 13"; echo "chip: Apple A15 Bionic"; echo "ram: 4 GB (typical for this model; not exposed over USB)" ;;
+    iPhone14,4) echo "marketing_name: iPhone 13 mini"; echo "chip: Apple A15 Bionic"; echo "ram: 4 GB (typical for this model; not exposed over USB)" ;;
+    iPhone14,2) echo "marketing_name: iPhone 13 Pro"; echo "chip: Apple A15 Bionic"; echo "ram: 6 GB (typical for this model; not exposed over USB)" ;;
+    iPhone14,3) echo "marketing_name: iPhone 13 Pro Max"; echo "chip: Apple A15 Bionic"; echo "ram: 6 GB (typical for this model; not exposed over USB)" ;;
+    iPhone15,4) echo "marketing_name: iPhone 15"; echo "chip: Apple A16 Bionic"; echo "ram: 6 GB (typical for this model; not exposed over USB)" ;;
+    iPhone15,5) echo "marketing_name: iPhone 15 Plus"; echo "chip: Apple A16 Bionic"; echo "ram: 6 GB (typical for this model; not exposed over USB)" ;;
+    iPhone16,1) echo "marketing_name: iPhone 15 Pro"; echo "chip: Apple A17 Pro"; echo "ram: 8 GB (typical for this model; not exposed over USB)" ;;
+    iPhone16,2) echo "marketing_name: iPhone 15 Pro Max"; echo "chip: Apple A17 Pro"; echo "ram: 8 GB (typical for this model; not exposed over USB)" ;;
+    iPhone17,3) echo "marketing_name: iPhone 16"; echo "chip: Apple A18"; echo "ram: 8 GB (typical for this model; not exposed over USB)" ;;
+    iPhone17,4) echo "marketing_name: iPhone 16 Plus"; echo "chip: Apple A18"; echo "ram: 8 GB (typical for this model; not exposed over USB)" ;;
+    *)
+      echo "marketing_name: unknown (ProductType $product_type)"
+      echo "chip: see https://apple.com for ProductType $product_type"
+      echo "ram: not exposed over USB — check Settings → General → About or Apple spec sheet"
+      ;;
+  esac
+}
+
+capture_ios_physical_device() {
+  local udid="$1"
+  local product_type
+  local total_disk total_data data_available
+
+  product_type="$(ideviceinfo -u "$udid" -k ProductType 2>/dev/null | tr -d '\r')"
+  total_disk="$(ideviceinfo -u "$udid" -q com.apple.disk_usage -k TotalDiskCapacity 2>/dev/null | tr -d '\r')"
+  total_data="$(ideviceinfo -u "$udid" -q com.apple.disk_usage -k TotalDataCapacity 2>/dev/null | tr -d '\r')"
+  data_available="$(ideviceinfo -u "$udid" -q com.apple.disk_usage -k AmountDataAvailable 2>/dev/null | tr -d '\r')"
+
+  {
+    echo "## iOS device ($udid)"
+    echo "device_name: $(ideviceinfo -u "$udid" -k DeviceName 2>/dev/null | tr -d '\r')"
+    echo "device_class: $(ideviceinfo -u "$udid" -k DeviceClass 2>/dev/null | tr -d '\r')"
+    echo "product_type: $product_type"
+    capture_ios_product_specs "$product_type"
+    echo "ios: $(ideviceinfo -u "$udid" -k ProductVersion 2>/dev/null | tr -d '\r')"
+    echo "build: $(ideviceinfo -u "$udid" -k BuildVersion 2>/dev/null | tr -d '\r')"
+    echo "model_number: $(ideviceinfo -u "$udid" -k ModelNumber 2>/dev/null | tr -d '\r')"
+    echo "hardware_model: $(ideviceinfo -u "$udid" -k HardwareModel 2>/dev/null | tr -d '\r')"
+    echo "hardware_platform: $(ideviceinfo -u "$udid" -k HardwarePlatform 2>/dev/null | tr -d '\r')"
+    echo "cpu_architecture: $(ideviceinfo -u "$udid" -k CPUArchitecture 2>/dev/null | tr -d '\r')"
+    if [ -n "$total_disk" ] && [ "$total_disk" -gt 0 ] 2>/dev/null; then
+      echo "storage_total_gb: $(( total_disk / 1000000000 ))"
+    fi
+    if [ -n "$total_data" ] && [ "$total_data" -gt 0 ] 2>/dev/null; then
+      echo "storage_data_gb: $(( total_data / 1000000000 ))"
+    fi
+    if [ -n "$data_available" ] && [ "$data_available" -gt 0 ] 2>/dev/null; then
+      echo "storage_available_gb: $(( data_available / 1000000000 ))"
+    fi
+  } 2>/dev/null
+}
+
+capture_ios_physical_devices() {
+  if ! command -v ideviceinfo >/dev/null 2>&1 || ! command -v idevice_id >/dev/null 2>&1; then
+    echo "## iOS device: libimobiledevice not installed (brew install libimobiledevice)"
+    return
+  fi
+
+  local udids=()
+  local udid
+
+  if [ -n "$IOS_DEVICE" ]; then
+    udids=("$IOS_DEVICE")
+  else
+    while IFS= read -r udid; do
+      [ -n "$udid" ] && udids+=("$udid")
+    done < <(idevice_id -l 2>/dev/null)
+  fi
+
+  if [ "${#udids[@]}" -eq 0 ]; then
+    echo "## iOS device: none connected via USB"
+    echo "hint: connect iPhone, tap Trust, run: brew install libimobiledevice"
+    return
+  fi
+
+  for udid in "${udids[@]}"; do
+    capture_ios_physical_device "$udid"
+    echo
+  done
 }
 
 capture_ios_simulator() {
@@ -130,8 +222,11 @@ echo "==> Collecting hardware info → artifacts/hardware.txt"
     echo "## Android device: adb not installed"
   fi
   echo
-  if [ "$OS" = "Darwin" ] && command -v xcrun >/dev/null 2>&1; then
-    capture_ios_simulator
+  if [ "$OS" = "Darwin" ]; then
+    capture_ios_physical_devices
+    if command -v xcrun >/dev/null 2>&1; then
+      capture_ios_simulator
+    fi
   fi
 } > "$OUT/hardware.txt"
 
@@ -148,6 +243,9 @@ echo "==> Collecting toolchain / reproducibility info → artifacts/env.txt"
   echo "build type:     $BUILD_TYPE"
   if command -v adb >/dev/null 2>&1 && [ -n "${ADB_DEVICE:-}" ]; then
     echo "adb device:     $ADB_DEVICE"
+  fi
+  if [ -n "${IOS_DEVICE:-}" ]; then
+    echo "ios device:     $IOS_DEVICE"
   fi
   echo "git commit:     $(git -C "$ROOT" rev-parse HEAD 2>/dev/null)"
   echo "git branch:     $(git -C "$ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null)"

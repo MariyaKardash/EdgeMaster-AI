@@ -184,17 +184,29 @@ Select your physical device in Xcode when prompted. This runs `expo run:ios --co
 bash scripts/collect-artifacts.sh --info --release
 ```
 
-Add physical device specs to `artifacts/hardware.txt` (not auto-detected for iOS):
+With **both phones on USB** (Android via adb, iPhone trusted), `artifacts/hardware.txt` auto-captures:
 
-```
-## iOS device
-model: iPhone 15
-ios: 18.5
-chip: A16
-ram: 6 GB
+- Host Mac specs
+- Android device (model, SoC board, RAM from `/proc/meminfo`, etc.)
+- **Physical iPhone** via `libimobiledevice` (`ideviceinfo`) — model, iOS version, storage, chip lookup from ProductType
+
+Install libimobiledevice if needed:
+
+```bash
+brew install libimobiledevice
 ```
 
-Source: **Settings → General → About** on the device, or Xcode Devices window.
+Pin a specific iPhone:
+
+```bash
+IOS_DEVICE=00008110-000A384211F2401E bash scripts/collect-artifacts.sh --info --release
+```
+
+List UDIDs: `idevice_id -l`
+
+> **Note:** iOS does not expose RAM over USB. The script maps common `ProductType` values (e.g. `iPhone14,5` → iPhone 13, A15, 4 GB). Add a Settings → About screenshot to `artifacts/` if judges want visual proof.
+
+If no iPhone is connected you will see `## iOS device: none connected via USB` instead of the old simulator-only line.
 
 ### 4. Full analytics capture
 
