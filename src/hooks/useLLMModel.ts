@@ -1,16 +1,14 @@
-import {
-  downloadAsset,
-  LLAMA_3_2_1B_INST_Q4_0,
-  loadModel,
-  type ModelProgressUpdate,
-  unloadModel,
-  VERBOSITY,
-} from '@qvac/sdk';
 import { useEffect, useRef, useState } from 'react';
 
-import { auditModelLoad, auditModelUnload } from '@/lib/qvac-audit';
+import {
+  getSharedLLMService,
+  LLM_DEFAULT_CTX_SIZE,
+  STATUS_LABELS,
+  type LLMModelStatus,
+  type LLMProgressCallback,
+} from '@/services/llm';
 
-export type LLMModelStatus = 'idle' | 'downloading' | 'loading' | 'ready' | 'error';
+export type { LLMModelStatus };
 
 export type UseLLMModelResult = {
   modelId: string | null;
@@ -21,82 +19,60 @@ export type UseLLMModelResult = {
 };
 
 type UseLLMModelParams = {
+  /** Kept for API compatibility — the shared service always loads LLM_MAX_CTX_SIZE. */
   ctxSize?: number;
 };
 
-export function useLLMModel({ ctxSize = 1024 }: UseLLMModelParams = {}): UseLLMModelResult {
+export function useLLMModel({
+  ctxSize: _ctxSize = LLM_DEFAULT_CTX_SIZE,
+}: UseLLMModelParams = {}): UseLLMModelResult {
   const [modelId, setModelId] = useState<string | null>(null);
   const [status, setStatus] = useState<LLMModelStatus>('idle');
-  const [statusLabel, setStatusLabel] = useState('Initializing…');
+  const [statusLabel, setStatusLabel] = useState(STATUS_LABELS.idle);
   const [downloadPct, setDownloadPct] = useState<number | null>(null);
 
-  const mountedRef = useRef(true);
-  // Capture ctxSize at mount time — changing it after load would require a full model reload
-  const ctxSizeRef = useRef(ctxSize);
+  const onProgressRef = useRef<LLMProgressCallback | null>(null);
 
   useEffect(() => {
-    mountedRef.current = true;
+    const service = getSharedLLMService();
+    let cancelled = false;
 
-    (async () => {
+    const onProgress: LLMProgressCallback = (nextStatus, pct) => {
+      if (cancelled) return;
+      setStatus(nextStatus);
+      setStatusLabel(STATUS_LABELS[nextStatus] ?? nextStatus);
+      setDownloadPct(
+        nextStatus === 'downloading' || nextStatus === 'loading' ? (pct ?? null) : null,
+      );
+    };
+
+    onProgressRef.current = onProgress;
+
+    void (async () => {
       try {
-        setStatus('downloading');
-        setStatusLabel('Downloading LLM…');
-
-        await downloadAsset({
-          assetSrc: LLAMA_3_2_1B_INST_Q4_0,
-          onProgress: (p: ModelProgressUpdate) => {
-            if (mountedRef.current) setDownloadPct(Math.round(p.percentage));
-          },
-        });
-
-        if (!mountedRef.current) return;
-
-        setStatus('loading');
-        setStatusLabel('Loading LLM into memory…');
-        setDownloadPct(null);
-
-        const id = await loadModel({
-          modelSrc: LLAMA_3_2_1B_INST_Q4_0,
-          modelType: 'llamacpp-completion',
-          modelConfig: {
-            device: 'gpu',
-            ctx_size: ctxSizeRef.current,
-            verbosity: VERBOSITY.ERROR,
-          },
-          onProgress: (p: ModelProgressUpdate) => {
-            if (mountedRef.current) setDownloadPct(Math.round(p.percentage));
-          },
-        });
-
-        if (!mountedRef.current) return;
-
-        auditModelLoad(LLAMA_3_2_1B_INST_Q4_0.name, 'llamacpp-completion', id, 'gpu');
+        const id = await service.acquire(onProgress);
+        if (cancelled) return;
         setModelId(id);
         setStatus('ready');
-        setStatusLabel('LLM ready');
+        setStatusLabel(STATUS_LABELS.ready);
         setDownloadPct(null);
       } catch (e: unknown) {
-        if (mountedRef.current) {
-          const message = e instanceof Error ? e.message : String(e);
-          setStatus('error');
-          setStatusLabel(`LLM failed: ${message}`);
+        if (cancelled) return;
+        const message = e instanceof Error ? e.message : String(e);
+        if (message === 'LLM acquire cancelled' || message === 'LLM load cancelled') {
+          return;
         }
+        setStatus('error');
+        setStatusLabel(`LLM failed: ${message}`);
       }
     })();
 
     return () => {
-      mountedRef.current = false;
+      cancelled = true;
+      service.release(onProgressRef.current ?? undefined);
+      onProgressRef.current = null;
     };
   }, []);
-
-  useEffect(() => {
-    return () => {
-      if (modelId) {
-        auditModelUnload(LLAMA_3_2_1B_INST_Q4_0.name, modelId);
-        void unloadModel({ modelId, clearStorage: false }).catch(() => {});
-      }
-    };
-  }, [modelId]);
 
   return {
     modelId,

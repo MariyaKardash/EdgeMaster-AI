@@ -20,6 +20,7 @@ import { formatDocContent } from './campaign-rag.utils';
 export class CampaignRAGService {
   private embeddingModelId: string | null = null;
   private campaignId: string | null = null;
+  private initPromise: Promise<void> | null = null;
 
   get isReady() {
     return this.embeddingModelId !== null && this.campaignId !== null;
@@ -30,6 +31,20 @@ export class CampaignRAGService {
   }
 
   async initialize(onProgress?: RAGServiceProgressCallback): Promise<void> {
+    if (this.embeddingModelId) return;
+
+    if (this.initPromise) {
+      return this.initPromise;
+    }
+
+    this.initPromise = this.loadEmbedder(onProgress).finally(() => {
+      this.initPromise = null;
+    });
+
+    return this.initPromise;
+  }
+
+  private async loadEmbedder(onProgress?: RAGServiceProgressCallback): Promise<void> {
     if (this.embeddingModelId) return;
 
     onProgress?.('downloading-embedder');
@@ -79,6 +94,15 @@ export class CampaignRAGService {
     const existing = await ragListWorkspaces();
     const alreadySeeded = existing.some((w) => w.name === workspace);
 
+    if (__DEV__) {
+      console.log('[campaign-rag] openWorkspace', {
+        campaignId,
+        alreadySeeded,
+        docCount: seedDocuments.length,
+        docIds: seedDocuments.map((doc) => doc.id),
+      });
+    }
+
     if (!alreadySeeded) {
       if (seedDocuments.length > 0) {
         onProgress?.('seeding');
@@ -108,19 +132,38 @@ export class CampaignRAGService {
    * minScore are considered unrelated and are dropped. If all results are
    * dropped, null is returned so the caller can skip context injection.
    */
-  async search(query: string, topK = 3, minScore = 0.5): Promise<string | null> {
+  async search(query: string, topK = 3, minScore = 0.28): Promise<string | null> {
     if (!this.embeddingModelId || !this.campaignId) {
       return null;
     }
+
+    const workspace = `${WORKSPACE_PREFIX}${this.campaignId}`;
 
     const results = await ragSearch({
       modelId: this.embeddingModelId,
       query,
       topK,
-      workspace: `${WORKSPACE_PREFIX}${this.campaignId}`,
+      workspace,
     });
 
-    const relevant = results.filter((r) => r.score >= minScore);
+    let relevant = results.filter((r) => r.score >= minScore);
+
+    // Keep the best match when scores cluster just below threshold.
+    if (relevant.length === 0 && results.length > 0 && results[0].score >= 0.2) {
+      relevant = [results[0]];
+    }
+
+    if (__DEV__) {
+      console.log('[campaign-rag] search', {
+        query,
+        workspace,
+        topK,
+        minScore,
+        resultCount: results.length,
+        scores: results.map((r) => Number(r.score.toFixed(3))),
+        keptCount: relevant.length,
+      });
+    }
 
     qvacAudit({
       event: 'rag_search',

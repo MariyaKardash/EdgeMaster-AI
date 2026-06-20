@@ -1,5 +1,7 @@
+import { LLM_MAX_CTX_SIZE } from '@/services/llm';
+
 /** Context window passed to useLLMModel on the summarize screen. */
-export const CHAPTER_SUMMARY_CTX_SIZE = 2048;
+export const CHAPTER_SUMMARY_CTX_SIZE = LLM_MAX_CTX_SIZE;
 
 /** Max chapter background chars included when events exist (setting names/tone only). */
 export const CHAPTER_BACKGROUND_MAX_CHARS = 280;

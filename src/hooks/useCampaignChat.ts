@@ -1,6 +1,7 @@
 import { completion } from '@qvac/sdk';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { resolveChatContext } from '@/lib/campaign-documents';
 import type { CampaignDoc } from '@/types/campaign.types';
 import type { ChatMessage, MessageStats } from '@/screens/llm-chat/llm-chat.types';
 
@@ -41,14 +42,18 @@ function buildSystemPrompt(campaignName: string, context: string | null): string
     return (
       base +
       ` You have no recorded campaign information relevant to this question. ` +
-      `Tell the user clearly that this topic isn't covered in the current campaign notes.`
+      `Do not guess or invent lore, characters, places, or events. ` +
+      `Tell the user clearly that this topic is not covered in the current campaign notes.`
     );
   }
 
   return (
     base +
-    ` Answer concisely and accurately based on the campaign context below. ` +
-    `If the answer is not covered by the context, say so honestly.\n\nCampaign context:\n${context}`
+    ` Answer ONLY using the campaign context below. ` +
+    `Do NOT invent characters, places, factions, or events that are not in the context. ` +
+    `If the context does not contain the answer, say you do not have that information in the campaign notes. ` +
+    `Prefer SESSION-SUMMARY sections for what happened at the table; CHAPTER-DESCRIPTION is background only.\n\n` +
+    `Campaign context:\n${context}`
   );
 }
 
@@ -64,9 +69,21 @@ export function useCampaignChat({
   const [isGenerating, setIsGenerating] = useState(false);
 
   const messagesRef = useRef<ChatMessage[]>([]);
+  const seedDocumentsRef = useRef(seedDocuments);
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+  useEffect(() => {
+    seedDocumentsRef.current = seedDocuments;
+    if (__DEV__) {
+      console.log('[campaign-chat] seedDocuments', {
+        campaignId,
+        campaignName,
+        docCount: seedDocuments.length,
+        docIds: seedDocuments.map((doc) => doc.id),
+      });
+    }
+  }, [campaignId, campaignName, seedDocuments]);
 
   const isReady = llm.isReady && rag.isReady;
 
@@ -104,9 +121,27 @@ export function useCampaignChat({
       setMessages((prev) => [...prev, userMsg, assistantMsg]);
 
       try {
-        const ragContext = await rag.search(trimmed);
+        if (__DEV__) {
+          console.log('[campaign-chat] sendMessage', { query: trimmed, campaignName });
+        }
 
-        const systemContent = buildSystemPrompt(campaignName, ragContext);
+        const ragContext = await rag.search(trimmed);
+        const { context, source } = resolveChatContext(
+          ragContext,
+          seedDocumentsRef.current,
+          trimmed,
+        );
+
+        if (__DEV__) {
+          console.log('[campaign-chat] context', {
+            source,
+            hasContext: context != null,
+            contextLength: context?.length ?? 0,
+            contextPreview: context?.slice(0, 200),
+          });
+        }
+
+        const systemContent = buildSystemPrompt(campaignName, context);
 
         const recentMessages = messagesRef.current
           .filter((m) => m.role !== 'system')
@@ -167,7 +202,7 @@ export function useCampaignChat({
         setIsGenerating(false);
       }
     },
-    [llm.modelId, isGenerating, rag, campaignName],
+    [llm.modelId, isGenerating, rag, campaignName, campaignId],
   );
 
   return {
