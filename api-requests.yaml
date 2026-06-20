@@ -1,0 +1,441 @@
+# EdgeMaster AI — API request catalog
+#
+# This project does not expose or consume traditional HTTP REST APIs for app logic.
+# On-device AI runs through @qvac/sdk; multiplayer sync uses Holepunch P2P over a
+# Bare worklet IPC channel (JSON, newline-delimited).
+#
+# Generated from source audit of src/, app/, and p2p-runtime.js.
+
+project:
+  name: EdgeMaster AI
+  package: edgemaster-ai
+  architecture:
+    ai: '@qvac/sdk (on-device inference and RAG)'
+    multiplayer: 'Holepunch Hyperswarm P2P via react-native-bare-kit worklet'
+
+# -----------------------------------------------------------------------------
+# QVAC SDK (@qvac/sdk ^0.12.2)
+# -----------------------------------------------------------------------------
+qvac_sdk:
+  package: '@qvac/sdk'
+  transport: native bridge (no HTTP for inference; model assets may download over network)
+
+  models:
+    llm:
+      asset: LLAMA_3_2_1B_INST_Q4_0
+      model_type: llamacpp-completion
+      device: gpu
+      ctx_size: 2048
+      used_by:
+        - LLMService
+        - useCampaignChat
+        - useLiveControl
+        - useNewChapter
+        - chapter-summarize.utils
+
+    embedder:
+      asset: EMBEDDINGGEMMA_300M_Q4_0
+      model_type: llamacpp-embedding
+      device: cpu
+      used_by:
+        - CampaignRAGService
+
+    whisper:
+      asset: WHISPER_TINY_Q8_0
+      model_type: whispercpp-transcription
+      used_by:
+        - useTranscription
+
+  requests:
+    - id: qvac.download_asset
+      function: downloadAsset
+      description: Download model asset to device storage (network on first use)
+      parameters:
+        assetSrc: 'model constant (LLAMA_3_2_1B_INST_Q4_0 | EMBEDDINGGEMMA_300M_Q4_0 | WHISPER_TINY_Q8_0)'
+        onProgress: optional progress callback
+      callers:
+        - src/services/llm/LLMService.ts
+        - src/services/campaign-rag/CampaignRAGService.ts
+        - src/hooks/useTranscription.ts
+
+    - id: qvac.load_model
+      function: loadModel
+      description: Load a downloaded model into memory
+      parameters:
+        modelSrc: model constant
+        modelType: 'llamacpp-completion | llamacpp-embedding | whispercpp-transcription'
+        modelConfig: optional (device, ctx_size, verbosity)
+        onProgress: optional progress callback
+      returns: modelId (string)
+      callers:
+        - src/services/llm/LLMService.ts
+        - src/services/campaign-rag/CampaignRAGService.ts
+        - src/hooks/useTranscription.ts
+
+    - id: qvac.unload_model
+      function: unloadModel
+      description: Release model from memory
+      parameters:
+        modelId: string
+        clearStorage: boolean (always false in this project)
+      callers:
+        - src/services/llm/LLMService.ts
+        - src/services/campaign-rag/CampaignRAGService.ts
+        - src/hooks/useTranscription.ts
+
+    - id: qvac.completion
+      function: completion
+      description: Streamed LLM text completion
+      parameters:
+        modelId: string
+        history: 'array of { role: system | user | assistant, content: string }'
+        stream: true (always in this project)
+      returns:
+        events: async iterator (contentDelta, completionStats)
+        final: promise with stats
+      operations:
+        - name: campaign_chat
+          file: src/hooks/useCampaignChat.ts
+          trigger: user sends campaign chat message
+          rag: ragSearch before completion
+
+        - name: live_control_fix
+          file: src/hooks/useLiveControl.ts
+          trigger: master taps Fix on live event description
+
+        - name: new_chapter_fix
+          file: src/hooks/useNewChapter.ts
+          trigger: master taps Fix on chapter description
+
+        - name: new_chapter_generate
+          file: src/hooks/useNewChapter.ts
+          trigger: master generates chapter from prompt tab
+
+        - name: chapter_summarize
+          file: src/screens/master/chapter-summarize/chapter-summarize.utils.ts
+          trigger: master summarizes chapter (with or without events)
+
+        - name: chapter_summarize_fix
+          file: src/screens/master/chapter-summarize/chapter-summarize.utils.ts
+          trigger: master fixes generated chapter summary text
+
+    - id: qvac.transcribe
+      function: transcribe
+      description: Speech-to-text via Whisper
+      parameters:
+        modelId: string
+        audioChunk: raw file path (16 kHz mono WAV, not file:// URI)
+      returns: transcribed text (string)
+      callers:
+        - src/hooks/useTranscription.ts
+      used_in:
+        - useLiveControl (dictation)
+        - useNewChapter (dictation)
+
+    - id: qvac.rag_list_workspaces
+      function: ragListWorkspaces
+      description: List existing RAG workspaces on device
+      returns: array of { name }
+      callers:
+        - src/services/campaign-rag/CampaignRAGService.ts (openWorkspace)
+
+    - id: qvac.rag_ingest
+      function: ragIngest
+      description: Embed and store documents in a campaign workspace
+      parameters:
+        modelId: embedding model id
+        documents: formatted campaign docs
+        workspace: 'campaign-{campaignId}'
+        chunk: boolean (false for upserts)
+        onProgress: optional (initial seeding)
+      callers:
+        - src/services/campaign-rag/CampaignRAGService.ts (openWorkspace, addDocuments)
+
+    - id: qvac.rag_search
+      function: ragSearch
+      description: Semantic search over campaign workspace
+      parameters:
+        modelId: embedding model id
+        query: user query string
+        topK: 3 (default)
+        workspace: 'campaign-{campaignId}'
+      returns: array of { content, score }
+      callers:
+        - src/services/campaign-rag/CampaignRAGService.ts
+        - src/hooks/useCampaignChat.ts (via useCampaignRAG)
+
+    - id: qvac.rag_delete_embeddings
+      function: ragDeleteEmbeddings
+      description: Remove document vectors before re-ingest (upsert)
+      parameters:
+        ids: document id list
+        workspace: 'campaign-{campaignId}'
+      callers:
+        - src/services/campaign-rag/CampaignRAGService.ts (addDocuments)
+
+# -----------------------------------------------------------------------------
+# P2P worklet IPC (main app path)
+# Transport: JSON + newline over react-native-bare-kit Worklet IPC
+# Client: src/database/p2p/worklet-client.ts
+# Runtime: src/lib/holepunch/bare/p2p-runtime.js
+# -----------------------------------------------------------------------------
+p2p_worklet_ipc:
+  transport: newline-delimited JSON over BareKit IPC
+  client: src/database/p2p/worklet-client.ts
+  runtime: src/lib/holepunch/bare/p2p-runtime.js
+
+  commands:
+    - id: p2p.init
+      type: init
+      direction: app → worklet
+      parameters:
+        storagePath: string
+      response_events:
+        - type: status
+          message: 'Storage ready.'
+
+    - id: p2p.open_campaign
+      type: open-campaign
+      direction: app → worklet
+      parameters:
+        campaignId: string
+        coreKey: optional hex string (join replication)
+      response_events:
+        - type: campaign-opened
+          fields: [campaignId, coreKey, discoveryKey, writable]
+
+    - id: p2p.close_campaign
+      type: close-campaign
+      direction: app → worklet
+      parameters:
+        requestId: optional string
+      response_events:
+        - type: campaign-closed
+
+    - id: p2p.put
+      type: put
+      direction: app → worklet
+      parameters:
+        requestId: string
+        key: string
+        value: 'P2pDbValue (entity | string[] | string)'
+      response_events:
+        - type: db-put-result
+
+    - id: p2p.get
+      type: get
+      direction: app → worklet
+      parameters:
+        requestId: string
+        key: string
+      response_events:
+        - type: db-get-result
+          fields: [key, value]
+
+    - id: p2p.del
+      type: del
+      direction: app → worklet
+      parameters:
+        requestId: string
+        key: string
+      response_events:
+        - type: db-del-result
+
+    - id: p2p.list
+      type: list
+      direction: app → worklet
+      parameters:
+        requestId: string
+        gte: string (key prefix start)
+        lt: string (key prefix end)
+      response_events:
+        - type: db-list-result
+          fields: [entries]
+
+    - id: p2p.start_swarm
+      type: start-swarm
+      direction: app → worklet
+      parameters:
+        role: 'host | join'
+        alias: string
+        topicHex: optional string
+        sessionCode: optional string (XXXX-XXXX)
+        campaignId: optional string
+      response_events:
+        - type: ready
+          fields: [role, alias, topicHex]
+
+    - id: p2p.stop_swarm
+      type: stop-swarm
+      direction: app → worklet
+      response_events:
+        - type: stopped
+
+  unsolicited_events:
+    - type: runtime-ready
+    - type: log
+    - type: status
+    - type: error
+    - type: peer-open
+    - type: peer-closed
+    - type: metrics
+    - type: campaign-db-updated
+    - type: db-put
+    - type: db-del
+    - type: chat
+
+  database_key_patterns:
+    - '@campaign/{id}'
+    - '@chapter/{id}'
+    - '@session/{id}'
+    - '@character-template/{id}'
+    - '@item-template/{id}'
+    - '@player/{id}'
+    - '@player-character/{id}'
+    - '@player-item/{id}'
+    - '@game-event/{id}'
+    - '@stats-history/{id}'
+    - '@item-history/{id}'
+    - '@meta/campaign-list'
+    - '@idx/session-code/{SESSION_CODE}'
+    - '@idx/session-topic/{topicHex}'
+    - '@idx/chapters/{campaignId}/'
+    - '@idx/players/{sessionId}/'
+    - '@idx/events/{chapterId}/'
+    - '@idx/character-templates/{campaignId}/'
+    - '@idx/item-templates/{campaignId}/'
+
+# -----------------------------------------------------------------------------
+# P2P peer control protocol (Hyperswarm multiplex channel)
+# Protocol name: dd-ai-control
+# -----------------------------------------------------------------------------
+p2p_peer_protocol:
+  protocol: dd-ai-control
+  encoding: JSON string per message
+  runtime: src/lib/holepunch/bare/p2p-runtime.js
+
+  packets:
+    - id: peer.request_session_info
+      type: request-session-info
+      direction: join → host
+      trigger: control channel opens on join side
+
+    - id: peer.session_info
+      type: session-info
+      direction: host → join
+      fields:
+        campaignId: string
+        coreKey: hex string
+      trigger: host opens control channel or responds to request-session-info
+
+    - id: peer.remote_put
+      type: remote-put
+      direction: join → host
+      fields:
+        requestId: string
+        key: string
+        value: P2pDbValue
+      description: Player writes (e.g. register player) proxied through host
+
+    - id: peer.remote_put_result
+      type: remote-put-result
+      direction: host → join
+      fields:
+        requestId: string
+        ok: boolean
+        message: optional string (on failure)
+
+    - id: peer.chat
+      type: chat
+      direction: bidirectional
+      fields:
+        author: string
+        text: string
+      description: Broadcast chat (holepunch playground / legacy path)
+
+# -----------------------------------------------------------------------------
+# Legacy Holepunch playground IPC (dev screen only)
+# Client: src/lib/holepunch/initHolepunchController.ts
+# Screen: src/screens/holepunch-playground/holepunch-playground.screen.tsx
+# -----------------------------------------------------------------------------
+holepunch_playground_ipc:
+  note: Alternate IPC surface for the Holepunch playground dev screen; not used in production flows
+  commands:
+    - id: playground.start
+      type: start
+      parameters: [role, alias, topicHex]
+
+    - id: playground.chat
+      type: chat
+      parameters: [text]
+
+    - id: playground.stop
+      type: stop
+
+# -----------------------------------------------------------------------------
+# Application repository API (uses p2p worklet put/get/list under the hood)
+# Class: src/database/p2p/campaign-repository.ts
+# -----------------------------------------------------------------------------
+campaign_repository:
+  class: CampaignRepository
+  file: src/database/p2p/campaign-repository.ts
+  transport: p2p worklet IPC (put, get, list, open-campaign, close-campaign)
+
+  methods:
+    - listLocalCampaigns
+    - createCampaign
+    - openCampaign
+    - closeCampaign
+    - getCampaign
+    - updateCampaign
+    - createChapter
+    - listChapters
+    - getChapter
+    - deleteChapter
+    - activateChapter
+    - createSession
+    - getSessionByTopicHex
+    - getSessionByCode
+    - listSessions
+    - endSession
+    - summarizeChapter
+    - createCharacterTemplate
+    - listCharacterTemplates
+    - createItemTemplate
+    - listItemTemplates
+    - registerPlayer
+    - listPlayers
+    - assignCharacter
+    - getPlayerCharacter
+    - grantItem
+    - listPlayerItems
+    - recordStatsHistory
+    - listStatsHistory
+    - recordItemHistory
+    - listItemHistory
+    - createGameEvent
+    - listGameEvents
+    - getActiveChapter
+
+# -----------------------------------------------------------------------------
+# Campaign RAG sync helpers (wrap CampaignRAGService)
+# File: src/services/campaign-rag/campaign-rag-sync.ts
+# -----------------------------------------------------------------------------
+campaign_rag_sync:
+  - id: syncChapterDescriptionToRAG
+    file: src/services/campaign-rag/campaign-rag-sync.ts
+  - id: syncChapterSummaryToRAG
+    file: src/services/campaign-rag/campaign-rag-sync.ts
+
+# -----------------------------------------------------------------------------
+# External network usage (non-REST)
+# -----------------------------------------------------------------------------
+external_network:
+  - id: qvac.model_download
+    description: First-launch model asset download via QVAC downloadAsset
+    triggered_by: downloadAsset in LLMService, CampaignRAGService, useTranscription
+    note: Requires Wi-Fi on first launch per COLLECT-ANALYTICS.md
+
+  - id: hyperswarm.peer_discovery
+    description: P2P peer discovery and connection via Hyperswarm (no central API server)
+    triggered_by: start-swarm / start-swarm IPC command
