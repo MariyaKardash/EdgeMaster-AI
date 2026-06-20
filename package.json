@@ -25,7 +25,9 @@
     "prepare": "husky",
     "artifacts": "bash scripts/collect-artifacts.sh",
     "artifacts:info": "bash scripts/collect-artifacts.sh --info",
-    "artifacts:release": "bash scripts/collect-artifacts.sh --release"
+    "artifacts:release": "bash scripts/collect-artifacts.sh --release",
+    "artifacts:info:ios": "bash scripts/collect-artifacts-ios.sh --info",
+    "artifacts:release:ios": "bash scripts/collect-artifacts-ios.sh"
   },
   "dependencies": {
     "@expo-google-fonts/dm-sans": "^0.4.2",

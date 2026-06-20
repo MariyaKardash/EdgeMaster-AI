@@ -1,4 +1,4 @@
-import { formatDocContent } from '@/services/campaign-rag/campaign-rag.utils';
+import { formatDocContentForChat } from '@/lib/campaign-documents/format-chat-context';
 import type { CampaignDoc } from '@/types/campaign.types';
 
 /** Broad recap-style questions where vector search often scores too low. */
@@ -13,7 +13,7 @@ export type ResolvedChatContext = {
 };
 
 function formatDocs(docs: CampaignDoc[]): string {
-  return docs.map(formatDocContent).join('\n\n');
+  return docs.map(formatDocContentForChat).join('\n\n');
 }
 
 function buildSeedFallbackContext(seedDocuments: CampaignDoc[], query: string): string | null {

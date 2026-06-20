@@ -154,7 +154,7 @@ Expected events: `model_load`, `rag_search`, `inference` (with `ttftMs` and `tok
 
 ## iOS (physical device, release)
 
-iOS release capture uses `idevicesyslog` or Xcode Console. The `collect-artifacts.sh --release` flag is Android-only today (adb logcat); follow the steps below for iOS.
+iOS release capture uses `idevicesyslog` or Xcode Console. Use `npm run artifacts:release:ios` (see below) or the manual steps in section 4.
 
 ### 1. Prepare the iPhone/iPad
 
@@ -218,7 +218,36 @@ Install `libimobiledevice` if needed:
 brew install libimobiledevice
 ```
 
-Start log capture:
+**Recommended** (same workflow as Android `artifacts:release`):
+
+```bash
+npm run artifacts:release:ios
+```
+
+Or pin a specific device:
+
+```bash
+IOS_DEVICE=00008110-000A384211F2401E npm run artifacts:release:ios
+```
+
+List UDIDs: `idevice_id -l`
+
+What happens:
+
+1. Writes `hardware.txt` and `env.txt` (via `collect-artifacts.sh --info --release`).
+2. Tails `idevicesyslog` for `[qvac-audit]` / React Native lines.
+3. Waits until you press **Ctrl-C**.
+4. Extracts `inference-audit-ios-release-<timestamp>.json`.
+
+**On the iPhone/iPad:**
+
+1. Force-close EdgeMaster AI, then relaunch the **release** build.
+2. Run the [standard demo actions](#standard-demo-actions).
+
+**Stop capture:** Ctrl-C in the terminal. If the process hangs, run `pkill -f idevicesyslog` in another terminal.
+
+<details>
+<summary>Manual alternative (same output files)</summary>
 
 ```bash
 TS=$(date +%Y%m%d-%H%M%S)
@@ -232,14 +261,11 @@ idevicesyslog 2>&1 \
     done | tee "$LOG"
 ```
 
-**On the iPhone/iPad:**
+Then extract JSON with the Python snippet below (or re-run only extraction from an existing log).
 
-1. Force-close EdgeMaster AI, then relaunch the **release** build.
-2. Run the [standard demo actions](#standard-demo-actions).
+</details>
 
-**Stop capture:** Ctrl-C in the terminal.
-
-**Extract JSON audit file:**
+**Extract JSON audit file** (only if you used the manual syslog command above):
 
 ```bash
 TS=<same-timestamp>
@@ -335,6 +361,8 @@ This guide targets **release builds**. For dev-client + Metro workflows, see the
 | `idevicesyslog` not found            | iOS      | `brew install libimobiledevice`                                                   |
 | Models not downloading               | Both     | Connect device to Wi-Fi; keep screen awake during first run                       |
 | `artifacts:release` errors on no adb | Android  | Connect phone via USB; run `adb devices`                                          |
+| iOS capture hangs on Ctrl-C          | iOS      | `pkill -f idevicesyslog` in another terminal                                      |
+| `artifacts:release:ios` no device    | iOS      | USB + Trust; run `idevice_id -l`                                                  |
 
 ---
 
@@ -347,14 +375,15 @@ npm run ios:release              # iOS
 
 # Hardware + env (release-labelled)
 bash scripts/collect-artifacts.sh --info --release
+npm run artifacts:info:ios       # same + iOS device check
 
 # Full capture — Android release (one terminal, no Metro)
 npm run artifacts:release
 ADB_DEVICE=<serial> npm run artifacts:release
 
 # Full capture — iOS release (one terminal, no Metro)
-idevicesyslog | grep qvac-audit | tee artifacts/run-ios-release-<ts>.log
-# then launch app, demo, Ctrl-C, extract JSON
+npm run artifacts:release:ios
+IOS_DEVICE=<udid> npm run artifacts:release:ios
 ```
 
-Script internals: `scripts/collect-artifacts.sh`.
+Script internals: `scripts/collect-artifacts.sh`, `scripts/collect-artifacts-ios.sh`.

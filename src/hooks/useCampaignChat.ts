@@ -2,17 +2,26 @@ import { completion } from '@qvac/sdk';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { resolveChatContext } from '@/lib/campaign-documents';
+import { sanitizeRagContext, truncateForChat } from '@/lib/campaign-documents/format-chat-context';
 import type { CampaignDoc } from '@/types/campaign.types';
 import type { ChatMessage, MessageStats } from '@/screens/llm-chat/llm-chat.types';
 
 import { auditCompletion } from '@/lib/qvac-audit';
 
+import {
+  CHAT_MAX_CONTEXT_CHARS,
+  CHAT_MAX_HISTORY_MESSAGE_CHARS,
+  CHAT_MAX_HISTORY_MESSAGES,
+  CHAT_MAX_OUTPUT_CHARS,
+  CHAT_MAX_PREDICT_TOKENS,
+} from './campaign-chat.constants';
 import { useCampaignRAG } from './useCampaignRAG';
 import { useLLMModel } from './useLLMModel';
 
-/** Max chat messages kept in the history sent to the LLM (not in the UI).
- *  Limits KV cache growth. 10 = 5 back-and-forth exchanges. */
-const MAX_HISTORY_MESSAGES = 10;
+function prepareChatContext(context: string | null): string | null {
+  if (!context) return null;
+  return truncateForChat(sanitizeRagContext(context), CHAT_MAX_CONTEXT_CHARS);
+}
 
 export type UseCampaignChatParams = {
   campaignId: string;
@@ -50,9 +59,10 @@ function buildSystemPrompt(campaignName: string, context: string | null): string
   return (
     base +
     ` Answer ONLY using the campaign context below. ` +
+    `Reply in 2–4 short sentences of plain prose. ` +
+    `Do NOT copy bracket tags, headers, UUIDs, or metadata from the context. ` +
     `Do NOT invent characters, places, factions, or events that are not in the context. ` +
-    `If the context does not contain the answer, say you do not have that information in the campaign notes. ` +
-    `Prefer SESSION-SUMMARY sections for what happened at the table; CHAPTER-DESCRIPTION is background only.\n\n` +
+    `If the context does not contain the answer, say you do not have that information in the campaign notes.\n\n` +
     `Campaign context:\n${context}`
   );
 }
@@ -132,21 +142,32 @@ export function useCampaignChat({
           trimmed,
         );
 
+        const preparedContext = prepareChatContext(context);
+
         if (__DEV__) {
           console.log('[campaign-chat] context', {
             source,
-            hasContext: context != null,
-            contextLength: context?.length ?? 0,
-            contextPreview: context?.slice(0, 200),
+            hasContext: preparedContext != null,
+            contextLength: preparedContext?.length ?? 0,
+            contextPreview: preparedContext?.slice(0, 200),
           });
         }
 
-        const systemContent = buildSystemPrompt(campaignName, context);
+        const systemContent = buildSystemPrompt(campaignName, preparedContext);
 
         const recentMessages = messagesRef.current
-          .filter((m) => m.role !== 'system')
-          .slice(-MAX_HISTORY_MESSAGES)
-          .map((m) => ({ role: m.role, content: m.content }));
+          .filter(
+            (m) =>
+              m.role !== 'system' &&
+              m.id !== assistantId &&
+              m.content.trim() &&
+              !m.content.startsWith('Error:'),
+          )
+          .slice(-CHAT_MAX_HISTORY_MESSAGES)
+          .map((m) => ({
+            role: m.role,
+            content: truncateForChat(m.content, CHAT_MAX_HISTORY_MESSAGE_CHARS),
+          }));
 
         const history = [
           { role: 'system' as const, content: systemContent },
@@ -158,6 +179,10 @@ export function useCampaignChat({
           modelId: llm.modelId,
           history,
           stream: true,
+          generationParams: {
+            predict: CHAT_MAX_PREDICT_TOKENS,
+            repeat_penalty: 1.15,
+          },
         });
 
         let acc = '';
@@ -166,6 +191,13 @@ export function useCampaignChat({
         for await (const event of run.events) {
           if (event.type === 'contentDelta') {
             acc += event.text;
+            if (acc.length >= CHAT_MAX_OUTPUT_CHARS) {
+              acc = truncateForChat(acc, CHAT_MAX_OUTPUT_CHARS);
+              setMessages((prev) =>
+                prev.map((m) => (m.id === assistantId ? { ...m, content: acc } : m)),
+              );
+              break;
+            }
             setMessages((prev) =>
               prev.map((m) => (m.id === assistantId ? { ...m, content: acc } : m)),
             );
